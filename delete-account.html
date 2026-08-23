@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>حذف الحساب | لقيتها</title>
+<style>
+  body {
+    font-family: -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
+    background: #EEF2FA;
+    color: #10275A;
+    margin: 0;
+    padding: 24px 16px;
+    line-height: 1.7;
+  }
+  .card {
+    max-width: 560px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 24px;
+    box-shadow: 0 4px 18px rgba(16,39,90,0.08);
+  }
+  h1 {
+    font-size: 22px;
+    margin-top: 0;
+    color: #10275A;
+  }
+  p { font-size: 15px; color: #33415C; }
+  ul { font-size: 15px; color: #33415C; padding-inline-start: 20px; }
+  .box {
+    background: #F5F8FF;
+    border: 1px solid #DDE6FA;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 18px 0;
+    font-size: 14px;
+  }
+  label { display: block; margin-top: 16px; font-weight: 600; font-size: 14px; }
+  input, textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #C7D2E8;
+    font-size: 15px;
+    margin-top: 6px;
+    font-family: inherit;
+  }
+  textarea { min-height: 80px; resize: vertical; }
+  button {
+    margin-top: 22px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    background: #10275A;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; }
+  .success, .error {
+    margin-top: 18px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .success { background: #E7F7EE; color: #12704A; }
+  .error { background: #FDECEC; color: #B3261E; }
+  .note { font-size: 12px; color: #6B7A99; margin-top: 24px; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>طلب حذف الحساب — لقيتها</h1>
+    <p>
+      هذه الصفحة مستقلة عن تطبيق لقيتها، ومتاحة حتى لو حذفت التطبيق من
+      جهازك. يمكنك استخدامها لطلب حذف حسابك وبياناتك بشكل كامل.
+    </p>
+    <div class="box">
+      <strong>ملاحظة:</strong> الطريقة الأسرع لحذف حسابك هي من داخل
+      التطبيق مباشرة (حسابي ← الإعدادات ← حذف الحساب)، حيث يتم الحذف
+      فوراً. استخدم هذا النموذج فقط إذا تعذر عليك الدخول للتطبيق.
+    </div>
+    <p>عند تقديم الطلب، سيتم حذف أو إخفاء ما يلي بشكل نهائي:</p>
+    <ul>
+      <li>بيانات حسابك (الاسم، البريد، رقم الجوال، الصورة الشخصية)</li>
+      <li>إعلاناتك وصورها</li>
+      <li>رسائلك ومحادثاتك</li>
+      <li>تقييماتك ومفضلاتك ومتابعاتك</li>
+      <li>مستندات التوثيق (الهوية والسيلفي) إن وُجدت</li>
+      <li>رصيد النقاط وسجل المعاملات</li>
+    </ul>
+
+    <form id="deleteForm">
+      <label for="email">البريد الإلكتروني المسجَّل بحسابك</label>
+      <input type="email" id="email" required placeholder="example@email.com">
+
+      <label for="username">اسم المستخدم (username) — اختياري، يساعدنا نتأكد من الحساب أسرع</label>
+      <input type="text" id="username" placeholder="بدون @">
+
+      <label for="reason">سبب الحذف (اختياري)</label>
+      <textarea id="reason" placeholder="اكتب أي تفاصيل إضافية تساعدنا..."></textarea>
+
+      <button type="submit" id="submitBtn">تقديم طلب الحذف</button>
+    </form>
+    <div id="result"></div>
+
+    <p class="note">
+      يُرجى العلم أن معالجة الطلب المُقدَّم من هذه الصفحة قد تستغرق حتى
+      72 ساعة عمل للتحقق من ملكية الحساب قبل الحذف. للتواصل المباشر
+      يمكنكم مراسلتنا على البريد المذكور بسياسة الخصوصية داخل التطبيق.
+    </p>
+  </div>
+
+<script>
+  // ⚠️ للمطوّر: بدّل القيمتين التاليتين بمشروعك الفعلي بـSupabase قبل
+  // النشر (نفس القيم المستخدمة بالتطبيق: SUPABASE_URL و anon key من
+  // Project Settings → API). هذا النموذج يكتب صفاً بجدول
+  // account_deletion_requests (يحتاج إنشاءه مرة وحدة عبر SQL Editor
+  // — الكود جاهز أسفل).
+  const SUPABASE_URL = "https://tnzxnjivkhyjijyotiog.supabase.co";
+  const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_KEY_HERE";
+
+  document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('submitBtn');
+    const result = document.getElementById('result');
+    result.innerHTML = '';
+    btn.disabled = true;
+    btn.textContent = 'جارٍ الإرسال...';
+
+    const email = document.getElementById('email').value.trim();
+    const username = document.getElementById('username').value.trim();
+    const reason = document.getElementById('reason').value.trim();
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/account_deletion_requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ email, username: username || null, reason: reason || null }),
+      });
+      if (!res.ok) throw new Error('request failed');
+      result.innerHTML = '<div class="success">تم استلام طلبك بنجاح. سنتحقق من ملكية الحساب ونتواصل معك على بريدك خلال 72 ساعة عمل كحد أقصى.</div>';
+      document.getElementById('deleteForm').reset();
+    } catch (err) {
+      result.innerHTML = '<div class="error">تعذر إرسال الطلب، حاول مرة أخرى لاحقاً أو راسلنا مباشرة على بريد الدعم.</div>';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'تقديم طلب الحذف';
+    }
+  });
+</script>
+</body>
+</html>
