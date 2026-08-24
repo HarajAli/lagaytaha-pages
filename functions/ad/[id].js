@@ -38,10 +38,10 @@ export async function onRequestGet(context) {
   const adId = params.id;
 
   const selectFields =
-    'id,title,description,price,currency,condition,status,created_at,' +
+    'id,title,description,price,currency,condition,status,created_at,category_id,' +
     'ad_images(image_url,order_index),' +
     'profiles!ads_user_id_fkey(full_name,username,is_verified),' +
-    'cities(name_ar)';
+    'cities(name_ar),categories(name_ar)';
 
   const apiUrl =
     `${SUPABASE_URL}/rest/v1/ads?id=eq.${encodeURIComponent(adId)}&select=${encodeURIComponent(selectFields)}`;
@@ -75,12 +75,48 @@ export async function onRequestGet(context) {
   const mainImage = images.length > 0 ? images[0].image_url : `${SITE_URL}/og-default.jpg`;
   const seller = ad.profiles || {};
   const cityName = ad.cities ? ad.cities.name_ar : null;
+  const categoryName = ad.categories ? ad.categories.name_ar : null;
+  const categoryUrl = ad.category_id ? `${SITE_URL}/category.html?id=${ad.category_id}` : null;
   const statusMessage = STATUS_LABELS[ad.status] || null;
   const priceText = formatPrice(ad.price, ad.currency);
   const canonicalUrl = `${SITE_URL}/ad/${encodeURIComponent(adId)}`;
   const description = ad.description
     ? ad.description.slice(0, 160)
     : `${ad.title} - ${priceText} على لقيتها، سوق اليمن المفتوح.`;
+  // الإعلانات غير النشطة (مباعة/منتهية) ما نبيها تظهر بنتائج بحث جوجل
+  // لأن المستخدم اللي يوصلها ما راح يقدر يشتري السلعة فعلياً.
+  const robotsContent = ad.status === 'active' ? 'index, follow' : 'noindex, follow';
+  const availability = ad.status === 'active'
+    ? 'https://schema.org/InStock'
+    : 'https://schema.org/OutOfStock';
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: ad.title,
+    description: ad.description || description,
+    image: images.map((img) => img.image_url),
+    offers: {
+      '@type': 'Offer',
+      price: ad.price != null ? String(ad.price) : undefined,
+      priceCurrency: ad.currency || 'YER',
+      availability,
+      url: canonicalUrl,
+    },
+    ...(ad.condition ? { itemCondition: `https://schema.org/${ad.condition === 'new' ? 'NewCondition' : 'UsedCondition'}` } : {}),
+  };
+
+  const breadcrumbData = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'الرئيسية', item: SITE_URL },
+      ...(categoryName && categoryUrl
+        ? [{ '@type': 'ListItem', position: 2, name: categoryName, item: categoryUrl }]
+        : []),
+      { '@type': 'ListItem', position: categoryName ? 3 : 2, name: ad.title, item: canonicalUrl },
+    ],
+  };
 
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -89,6 +125,7 @@ export async function onRequestGet(context) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(ad.title)} - لقيتها</title>
 <meta name="description" content="${escapeHtml(description)}">
+<meta name="robots" content="${robotsContent}">
 <link rel="canonical" href="${canonicalUrl}">
 <meta property="og:type" content="product">
 <meta property="og:title" content="${escapeHtml(ad.title)}">
@@ -96,6 +133,14 @@ export async function onRequestGet(context) {
 <meta property="og:image" content="${escapeHtml(mainImage)}">
 <meta property="og:url" content="${canonicalUrl}">
 <meta property="og:site_name" content="لقيتها">
+<meta property="product:price:amount" content="${ad.price != null ? escapeHtml(String(ad.price)) : ''}">
+<meta property="product:price:currency" content="${escapeHtml(ad.currency || 'YER')}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(ad.title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${escapeHtml(mainImage)}">
+<script type="application/ld+json">${JSON.stringify(structuredData)}</script>
+<script type="application/ld+json">${JSON.stringify(breadcrumbData)}</script>
 <style>
   body{font-family:system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;margin:0;background:#f5f5f4;color:#222}
   .header{background:#0F6E56;color:#fff;padding:14px 16px;font-weight:700;font-size:18px}
@@ -103,6 +148,8 @@ export async function onRequestGet(context) {
   .gallery{width:100%;aspect-ratio:4/3;background:#e5e5e5;overflow:hidden}
   .gallery img{width:100%;height:100%;object-fit:cover;display:block}
   .card{background:#fff;margin:12px;padding:16px;border-radius:12px}
+  .breadcrumb{padding:10px 12px 0;font-size:12.5px;color:#777}
+  .breadcrumb a{color:#0F6E56;text-decoration:none}
   .title{font-size:20px;font-weight:700;margin:0 0 6px}
   .price{font-size:22px;font-weight:800;color:#0F6E56;margin:0 0 8px}
   .meta{color:#777;font-size:13px;margin-bottom:12px}
@@ -120,9 +167,10 @@ export async function onRequestGet(context) {
 <div class="header">لقيتها — سوق اليمن المفتوح</div>
 ${statusMessage ? `<div class="status-banner">${escapeHtml(statusMessage)}</div>` : ''}
 <div class="container">
+  <nav class="breadcrumb"><a href="${SITE_URL}">الرئيسية</a>${categoryName && categoryUrl ? ` › <a href="${escapeHtml(categoryUrl)}">${escapeHtml(categoryName)}</a>` : ''} › ${escapeHtml(ad.title)}</nav>
   <div class="gallery"><img src="${escapeHtml(mainImage)}" alt="${escapeHtml(ad.title)}"></div>
   <div class="card">
-    <p class="title">${escapeHtml(ad.title)}</p>
+    <h1 class="title">${escapeHtml(ad.title)}</h1>
     <p class="price">${escapeHtml(priceText)}</p>
     <p class="meta">${cityName ? escapeHtml(cityName) : ''}</p>
     ${ad.description ? `<div class="desc">${escapeHtml(ad.description)}</div>` : ''}
