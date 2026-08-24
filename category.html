@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تصفح الإعلانات - لقيتها</title>
+<meta name="description" content="تصفح إعلانات القسم على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--bg:#f5f5f4;--card:#fff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+
+  .page-head{padding:22px 16px 10px}
+  .page-head h1{font-size:20px;margin:0 0 4px}
+  .page-head p{margin:0;font-size:13px;color:var(--muted)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .cat-chips{display:flex;gap:8px;overflow-x:auto;padding:14px 16px;-webkit-overflow-scrolling:touch}
+  .cat-chip{white-space:nowrap;background:#fff;border:1px solid var(--border);border-radius:20px;padding:8px 16px;font-size:13px;font-weight:600}
+  .cat-chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+
+  .section{padding:10px 16px 40px}
+  .ad-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(min-width:640px){.ad-grid{grid-template-columns:repeat(4,1fr)}}
+  .ad-card{background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative}
+  .ad-card .img-wrap{aspect-ratio:4/3;background:#e5e5e5;overflow:hidden;position:relative}
+  .ad-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .badge-featured{position:absolute;top:8px;right:8px;background:#f2a900;color:#fff;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:6px}
+  .ad-body{padding:10px}
+  .ad-title{font-size:13.5px;font-weight:700;margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ad-city{font-size:11.5px;color:var(--muted);margin:0 0 6px}
+  .ad-price{font-size:14.5px;font-weight:800;color:var(--green)}
+  .ad-time{font-size:10.5px;color:#999;margin-top:4px}
+  .empty-note{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:40px 0}
+
+  footer{margin-top:20px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+  footer a{color:var(--green);margin:0 6px}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="page-head">
+  <h1 id="pageTitle">جاري التحميل...</h1>
+  <p id="pageSub"></p>
+</div>
+
+<div class="cat-chips" id="catChips"></div>
+
+<section class="section">
+  <div class="ad-grid" id="resultsGrid">
+    <div class="empty-note">جاري التحميل...</div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <a href="/privacy">الخصوصية</a> ·
+    <a href="/terms">الشروط</a> ·
+    <a href="/delete-account">حذف الحساب</a>
+  </div>
+  <div style="margin-top:10px">© 2026 لقيتها. جميع الحقوق محفوظة.</div>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+
+// الأقسام الرئيسية (id ثابت من قاعدة البيانات) لعرضها كرقائق تصفّح سريع
+const MAIN_CATEGORIES = [
+  {id:1, name:'سيارات'},
+  {id:2, name:'عقارات'},
+  {id:3, name:'إلكترونيات'},
+  {id:4, name:'مواشي وحيوانات'},
+  {id:5, name:'أثاث ومفروشات'},
+  {id:6, name:'ملابس وأزياء'},
+  {id:7, name:'خدمات'},
+  {id:28, name:'أخرى'},
+];
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeAgo(iso){
+  const diff = (Date.now() - new Date(iso).getTime())/1000;
+  if(diff < 3600) return 'منذ ' + Math.max(1,Math.floor(diff/60)) + ' دقيقة';
+  if(diff < 86400) return 'منذ ' + Math.floor(diff/3600) + ' ساعة';
+  return 'منذ ' + Math.floor(diff/86400) + ' يوم';
+}
+function formatPrice(price, currency){
+  if(price == null) return 'السعر عند الاتصال';
+  const f = Number(price).toLocaleString('en-US');
+  return f + ' ' + (currency === 'YER' ? 'ريال' : currency);
+}
+function adCardHtml(ad){
+  const img = (ad.ad_images && ad.ad_images.length) ? ad.ad_images.sort((a,b)=>(a.order_index??0)-(b.order_index??0))[0].image_url : '';
+  const city = ad.cities ? ad.cities.name_ar : '';
+  return `<a class="ad-card" href="/ad/${ad.id}">
+    <div class="img-wrap">
+      ${ad.is_featured ? '<span class="badge-featured">مميز</span>' : ''}
+      ${img ? `<img src="${escapeHtml(img)}" loading="lazy" alt="${escapeHtml(ad.title)}">` : ''}
+    </div>
+    <div class="ad-body">
+      <p class="ad-title">${escapeHtml(ad.title)}</p>
+      <p class="ad-city">${escapeHtml(city)}</p>
+      <p class="ad-price">${formatPrice(ad.price, ad.currency)}</p>
+      <p class="ad-time">${timeAgo(ad.created_at)}</p>
+    </div>
+  </a>`;
+}
+
+function renderChips(activeId){
+  const el = document.getElementById('catChips');
+  el.innerHTML = MAIN_CATEGORIES.map(c =>
+    `<a class="cat-chip ${String(c.id)===String(activeId)?'active':''}" href="/category.html?id=${c.id}">${escapeHtml(c.name)}</a>`
+  ).join('');
+}
+
+async function loadCategory(catId){
+  const grid = document.getElementById('resultsGrid');
+  const cat = MAIN_CATEGORIES.find(c => String(c.id) === String(catId));
+  document.getElementById('pageTitle').textContent = cat ? cat.name : 'تصفح الإعلانات';
+  document.getElementById('pageSub').textContent = 'كل إعلانات هذا القسم من لقيتها';
+  renderChips(catId);
+
+  try{
+    const fields = 'id,title,price,currency,is_featured,created_at,category_id,ad_images(image_url,order_index),cities(name_ar)';
+    // يشمل القسم الرئيسي وكل الأقسام الفرعية التابعة له (parent_id = catId) عبر جلب معرفاتها أولاً
+    const subRes = await fetch(`${SUPABASE_URL}/rest/v1/categories?parent_id=eq.${catId}&select=id`, {
+      headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY}
+    });
+    const subCats = await subRes.json();
+    const ids = [Number(catId), ...(Array.isArray(subCats)?subCats.map(c=>c.id):[])];
+    const idsFilter = `(${ids.join(',')})`;
+
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/ads?status=eq.active&category_id=in.${idsFilter}&select=${encodeURIComponent(fields)}&order=created_at.desc&limit=48`, {
+      headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY}
+    });
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length === 0){
+      grid.innerHTML = '<div class="empty-note">لا توجد إعلانات في هذا القسم حالياً</div>';
+      return;
+    }
+    grid.innerHTML = data.map(adCardHtml).join('');
+  }catch(e){
+    grid.innerHTML = '<div class="empty-note">تعذر تحميل الإعلانات</div>';
+  }
+}
+
+const params = new URLSearchParams(window.location.search);
+const catId = params.get('id');
+if(catId){
+  loadCategory(catId);
+}else{
+  document.getElementById('pageTitle').textContent = 'اختر قسماً';
+  renderChips(null);
+  document.getElementById('resultsGrid').innerHTML = '<div class="empty-note">اختر قسماً من الأعلى لعرض إعلاناته</div>';
+}
+</script>
+
+</body>
+</html>

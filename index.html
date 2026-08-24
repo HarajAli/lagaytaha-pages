@@ -120,13 +120,13 @@
 <section class="section">
   <div class="section-head"><h2>تصفح الأقسام</h2></div>
   <div class="cat-grid">
-    <a class="cat-card" href="#"><div class="icon">🚗</div><div class="name">سيارات</div></a>
-    <a class="cat-card" href="#"><div class="icon">🏠</div><div class="name">عقارات</div></a>
-    <a class="cat-card" href="#"><div class="icon">📱</div><div class="name">جوالات</div></a>
-    <a class="cat-card" href="#"><div class="icon">🛋️</div><div class="name">أثاث ومفروشات</div></a>
-    <a class="cat-card" href="#"><div class="icon">💼</div><div class="name">وظائف وأعمال</div></a>
-    <a class="cat-card" href="#"><div class="icon">🎧</div><div class="name">إلكترونيات</div></a>
-    <a class="cat-card" href="#"><div class="icon">👗</div><div class="name">ملابس وأزياء</div></a>
+    <a class="cat-card" href="/category.html?id=1"><div class="icon">🚗</div><div class="name">سيارات</div></a>
+    <a class="cat-card" href="/category.html?id=2"><div class="icon">🏠</div><div class="name">عقارات</div></a>
+    <a class="cat-card" href="/category.html?id=15"><div class="icon">📱</div><div class="name">جوالات</div></a>
+    <a class="cat-card" href="/category.html?id=5"><div class="icon">🛋️</div><div class="name">أثاث ومفروشات</div></a>
+    <a class="cat-card" href="/category.html?id=7"><div class="icon">💼</div><div class="name">وظائف وأعمال</div></a>
+    <a class="cat-card" href="/category.html?id=3"><div class="icon">🎧</div><div class="name">إلكترونيات</div></a>
+    <a class="cat-card" href="/category.html?id=6"><div class="icon">👗</div><div class="name">ملابس وأزياء</div></a>
     <a class="cat-card" href="https://play.google.com/store/apps/details?id=com.laqaytaha.market"><div class="icon">•••</div><div class="name">المزيد</div></a>
   </div>
 </section>
@@ -246,8 +246,11 @@ loadAds(`${SUPABASE_URL}/rest/v1/ads?status=eq.active&select=${encodeURIComponen
 
 function doSearch(){
   const q = document.getElementById('searchInput').value.trim();
-  if(q) window.location.href = 'https://play.google.com/store/apps/details?id=com.laqaytaha.market';
+  if(q) window.location.href = '/search.html?q=' + encodeURIComponent(q);
 }
+document.getElementById('searchInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') doSearch();
+});
 </script>
 
 </body>
