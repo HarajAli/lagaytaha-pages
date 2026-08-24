@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إنشاء حساب - لقيتها</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--bg:#f5f5f4;--border:#eceae7;--muted:#777}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:#1e1e1e}
+  a{text-decoration:none;color:var(--green)}
+  .header{background:#fff;border-bottom:1px solid var(--border);padding:14px 16px;text-align:center;font-weight:800;color:var(--green)}
+  .wrap{max-width:400px;margin:40px auto;padding:0 16px}
+  .card{background:#fff;border:1px solid var(--border);border-radius:16px;padding:26px 22px}
+  h1{font-size:20px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  label{font-size:13px;font-weight:600;display:block;margin:14px 0 6px}
+  input{width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-family:inherit;font-size:14px}
+  input:focus{outline:none;border-color:var(--green)}
+  .btn{width:100%;background:var(--green);color:#fff;border:none;padding:13px;border-radius:10px;font-weight:700;font-size:14.5px;margin-top:18px;cursor:pointer}
+  .btn:disabled{opacity:.6}
+  .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px}
+  .msg.error{color:#c0392b}
+  .msg.ok{color:var(--green)}
+  .foot{text-align:center;font-size:13px;margin-top:16px;color:var(--muted)}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+<div class="header"><a href="/" style="color:var(--green)">لقيتها</a></div>
+<div class="wrap">
+  <div class="card">
+    <h1>إنشاء حساب جديد</h1>
+    <p class="sub">حساب واحد يعمل بالموقع وبتطبيق لقيتها معاً</p>
+    <label>الاسم الكامل</label>
+    <input id="fullName" type="text" placeholder="اسمك الكامل" autocomplete="name">
+    <label>البريد الإلكتروني</label>
+    <input id="email" type="email" placeholder="example@email.com" autocomplete="email">
+    <label>كلمة المرور</label>
+    <input id="password" type="password" placeholder="••••••••" autocomplete="new-password">
+    <div class="hint">6 أحرف على الأقل</div>
+    <button class="btn" id="registerBtn" onclick="doRegister()">إنشاء الحساب</button>
+    <div class="msg" id="msg"></div>
+    <div class="foot">عندك حساب؟ <a href="/login">تسجيل الدخول</a></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+
+async function doRegister(){
+  const fullName = document.getElementById('fullName').value.trim();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('registerBtn');
+  msg.textContent = ''; msg.className = 'msg';
+
+  if(!fullName || !email || !password){
+    msg.textContent = 'الرجاء تعبئة جميع الحقول';
+    msg.className = 'msg error';
+    return;
+  }
+  if(password.length < 6){
+    msg.textContent = 'كلمة المرور يجب أن تكون 6 أحرف على الأقل';
+    msg.className = 'msg error';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'جاري الإنشاء...';
+
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+      method: 'POST',
+      headers: {apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json'},
+      body: JSON.stringify({
+        email, password,
+        data: { full_name: fullName }
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      msg.textContent = data.error_description || data.msg || 'تعذر إنشاء الحساب';
+      msg.className = 'msg error';
+      btn.disabled = false; btn.textContent = 'إنشاء الحساب';
+      return;
+    }
+    msg.textContent = 'تم إنشاء الحساب! تحقق من بريدك الإلكتروني لتأكيد الحساب قبل النشر.';
+    msg.className = 'msg ok';
+    if(data.access_token){
+      localStorage.setItem('laqaytaha_session', JSON.stringify({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user: data.user
+      }));
+      setTimeout(()=>{ window.location.href = '/'; }, 1400);
+    }else{
+      setTimeout(()=>{ window.location.href = '/login'; }, 1800);
+    }
+  }catch(e){
+    msg.textContent = 'تعذر الاتصال بالخادم، حاول مرة أخرى';
+    msg.className = 'msg error';
+    btn.disabled = false; btn.textContent = 'إنشاء الحساب';
+  }
+}
+</script>
+</body>
+</html>
