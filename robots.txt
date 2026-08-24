@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://laqaytaha.com/sitemap.xml
