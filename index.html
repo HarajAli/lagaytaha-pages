@@ -28,12 +28,17 @@
   .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
 
   header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
-  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto;gap:10px}
   .logo{font-weight:800;font-size:20px;color:var(--green)}
   .logo span{display:block;font-size:11px;font-weight:400;color:var(--muted)}
   .nav-links{display:none}
   @media(min-width:860px){.nav-links{display:flex;gap:22px;font-size:14px;font-weight:500}}
-  .header-cta{background:var(--green);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700}
+  .header-right{display:flex;align-items:center;gap:10px}
+  .header-cta{background:var(--green);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap}
+  .login-link{font-size:13px;font-weight:700;color:var(--green);white-space:nowrap}
+  .user-chip{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
+  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .logout-btn{font-size:12px;color:#c0392b;font-weight:700;background:none;border:none;cursor:pointer;font-family:inherit}
 
   .hero{background:var(--green);color:#fff;border-radius:0 0 20px 20px;padding:28px 16px 32px}
   .hero-inner{max-width:1180px;margin:0 auto}
@@ -89,7 +94,10 @@
       <a href="/#featured">المميزة</a>
       <a href="/#latest">الأحدث</a>
     </nav>
-    <a class="header-cta" href="https://play.google.com/store/apps/details?id=com.laqaytaha.market">حمّل التطبيق</a>
+    <div class="header-right" id="authArea">
+      <a class="login-link" href="/login">تسجيل الدخول</a>
+      <a class="header-cta" href="https://play.google.com/store/apps/details?id=com.laqaytaha.market">حمّل التطبيق</a>
+    </div>
   </div>
 </header>
 
@@ -158,6 +166,39 @@
 const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
 
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function renderAuthArea(){
+  const el = document.getElementById('authArea');
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    el.innerHTML = `
+      <a class="login-link" href="/login">تسجيل الدخول</a>
+      <a class="header-cta" href="https://play.google.com/store/apps/details?id=com.laqaytaha.market">حمّل التطبيق</a>`;
+    return;
+  }
+  try{
+    const session = JSON.parse(raw);
+    const name = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'حسابي';
+    const initial = escapeHtml(name[0] || 'م');
+    el.innerHTML = `
+      <div class="user-chip">
+        <div class="user-avatar">${initial}</div>
+        <span>${escapeHtml(name.split(' ')[0])}</span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">خروج</button>`;
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+  }
+}
+function doLogout(){
+  localStorage.removeItem('laqaytaha_session');
+  renderAuthArea();
+}
+renderAuthArea();
+
 function timeAgo(iso){
   const diff = (Date.now() - new Date(iso).getTime())/1000;
   if(diff < 3600) return 'منذ ' + Math.max(1,Math.floor(diff/60)) + ' دقيقة';
@@ -168,10 +209,6 @@ function formatPrice(price, currency){
   if(price == null) return 'السعر عند الاتصال';
   const f = Number(price).toLocaleString('en-US');
   return f + ' ' + (currency === 'YER' ? 'ريال' : currency);
-}
-function escapeHtml(s){
-  if(s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 function adCardHtml(ad){
   const img = (ad.ad_images && ad.ad_images.length) ? ad.ad_images.sort((a,b)=>(a.order_index??0)-(b.order_index??0))[0].image_url : '';
