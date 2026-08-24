@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.laqaytaha.market",
+      "sha256_cert_fingerprints": [
+        "27:63:25:19:3E:B6:6F:4E:5D:71:E5:B1:C9:85:F3:66:66:8B:8E:67:14:6F:6F:67:BF:84:80:78:AB:B4:D6:23"
+      ]
+    }
+  }
+]
