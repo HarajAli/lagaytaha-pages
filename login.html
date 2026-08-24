@@ -21,16 +21,21 @@
   input:focus{outline:none;border-color:var(--green)}
   .btn{width:100%;background:var(--green);color:#fff;border:none;padding:13px;border-radius:10px;font-weight:700;font-size:14.5px;margin-top:18px;cursor:pointer}
   .btn:disabled{opacity:.6}
+  .btn-link{background:none;color:var(--green);font-weight:600;font-size:13px;padding:0;margin-top:14px;text-decoration:underline}
   .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px}
   .msg.error{color:#c0392b}
   .msg.ok{color:var(--green)}
   .foot{text-align:center;font-size:13px;margin-top:16px;color:var(--muted)}
+  #codeInput{letter-spacing:10px;font-size:22px;text-align:center;font-weight:700}
+  .hidden{display:none}
 </style>
 </head>
 <body>
 <div class="header"><a href="/" style="color:var(--green)">لقيتها</a></div>
 <div class="wrap">
-  <div class="card">
+
+  <!-- خطوة 1: تسجيل الدخول -->
+  <div class="card" id="loginCard">
     <h1>تسجيل الدخول</h1>
     <p class="sub">ادخل بنفس بيانات حسابك بتطبيق لقيتها</p>
     <label>البريد الإلكتروني</label>
@@ -41,11 +46,24 @@
     <div class="msg" id="msg"></div>
     <div class="foot">ما عندك حساب؟ <a href="/register">إنشاء حساب جديد</a></div>
   </div>
+
+  <!-- خطوة 2: إدخال كود التحقق (لمن لم يؤكد بريده) -->
+  <div class="card hidden" id="otpCard">
+    <h1>تأكيد البريد الإلكتروني</h1>
+    <p class="sub" id="otpSub">حسابك لم يُفعّل بعد. أدخل الرمز المكوّن من 6 أرقام المرسل إلى بريدك</p>
+    <label>رمز التحقق</label>
+    <input id="codeInput" type="text" inputmode="numeric" maxlength="6" placeholder="000000">
+    <button class="btn" id="verifyBtn" onclick="doVerify()">تأكيد والدخول</button>
+    <button class="btn btn-link" id="resendBtn" onclick="doResend()">إعادة إرسال الرمز</button>
+    <div class="msg" id="otpMsg"></div>
+  </div>
+
 </div>
 
 <script>
 const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+let pendingEmail = '';
 
 async function doLogin(){
   const email = document.getElementById('email').value.trim();
@@ -68,12 +86,27 @@ async function doLogin(){
       body: JSON.stringify({email, password})
     });
     const data = await res.json();
+
     if(!res.ok){
+      // إذا كان السبب أن البريد غير مؤكد، انتقل مباشرة لخطوة إدخال الكود
+      const errText = (data.error_description || data.msg || data.error_code || '').toLowerCase();
+      if(errText.includes('confirm') || errText.includes('not confirmed') || data.error_code === 'email_not_confirmed'){
+        pendingEmail = email;
+        document.getElementById('loginCard').classList.add('hidden');
+        document.getElementById('otpCard').classList.remove('hidden');
+        document.getElementById('otpSub').textContent = `حسابك لم يُفعّل بعد. أدخل الرمز المرسل إلى ${email}`;
+        document.getElementById('codeInput').focus();
+        // نرسل رمز جديد تلقائياً عشان يضمن وصول كود صالح
+        doResend(true);
+        btn.disabled = false; btn.textContent = 'دخول';
+        return;
+      }
       msg.textContent = data.error_description || data.msg || 'بيانات الدخول غير صحيحة';
       msg.className = 'msg error';
       btn.disabled = false; btn.textContent = 'دخول';
       return;
     }
+
     localStorage.setItem('laqaytaha_session', JSON.stringify({
       access_token: data.access_token,
       refresh_token: data.refresh_token,
@@ -87,6 +120,79 @@ async function doLogin(){
     msg.className = 'msg error';
     btn.disabled = false; btn.textContent = 'دخول';
   }
+}
+
+async function doVerify(){
+  const code = document.getElementById('codeInput').value.trim();
+  const otpMsg = document.getElementById('otpMsg');
+  const btn = document.getElementById('verifyBtn');
+  otpMsg.textContent = ''; otpMsg.className = 'msg';
+
+  if(!code || code.length !== 6){
+    otpMsg.textContent = 'الرجاء إدخال الرمز المكوّن من 6 أرقام';
+    otpMsg.className = 'msg error';
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'جاري التأكيد...';
+
+  try{
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
+      method: 'POST',
+      headers: {apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json'},
+      body: JSON.stringify({
+        type: 'signup',
+        email: pendingEmail,
+        token: code
+      })
+    });
+    const data = await res.json();
+    if(!res.ok){
+      otpMsg.textContent = data.error_description || data.msg || 'الرمز غير صحيح أو منتهي الصلاحية';
+      otpMsg.className = 'msg error';
+      btn.disabled = false; btn.textContent = 'تأكيد والدخول';
+      return;
+    }
+
+    // نجاح التحقق: تسجيل دخول مباشر تلقائي
+    if(data.access_token){
+      localStorage.setItem('laqaytaha_session', JSON.stringify({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        user: data.user
+      }));
+    }
+    otpMsg.textContent = 'تم التأكيد بنجاح، جاري الدخول...';
+    otpMsg.className = 'msg ok';
+    setTimeout(()=>{ window.location.href = '/'; }, 900);
+
+  }catch(e){
+    otpMsg.textContent = 'تعذر الاتصال بالخادم، حاول مرة أخرى';
+    otpMsg.className = 'msg error';
+    btn.disabled = false; btn.textContent = 'تأكيد والدخول';
+  }
+}
+
+async function doResend(silent){
+  const otpMsg = document.getElementById('otpMsg');
+  const btn = document.getElementById('resendBtn');
+  btn.disabled = true;
+  try{
+    await fetch(`${SUPABASE_URL}/auth/v1/resend`, {
+      method: 'POST',
+      headers: {apikey: SUPABASE_ANON_KEY, 'content-type': 'application/json'},
+      body: JSON.stringify({ type: 'signup', email: pendingEmail })
+    });
+    if(!silent){
+      otpMsg.textContent = 'تم إرسال رمز جديد';
+      otpMsg.className = 'msg ok';
+    }
+  }catch(e){
+    if(!silent){
+      otpMsg.textContent = 'تعذر إرسال الرمز، حاول لاحقاً';
+      otpMsg.className = 'msg error';
+    }
+  }
+  setTimeout(()=>{ btn.disabled = false; }, 20000);
 }
 </script>
 </body>
