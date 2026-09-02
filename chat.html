@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>المحادثة - لقيتها</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text);
+    display:flex;flex-direction:column;overflow:hidden}
+  a{text-decoration:none;color:inherit}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);flex-shrink:0}
+  .header-inner{display:flex;align-items:center;gap:10px;padding:10px 16px;max-width:780px;margin:0 auto}
+  .back-link{font-size:20px;color:var(--green);flex-shrink:0}
+  .chat-avatar{
+    width:36px;height:36px;border-radius:50%;background:var(--green);color:#fff;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;overflow:hidden
+  }
+  .chat-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .chat-name{font-size:14.5px;font-weight:700}
+  .chat-ad-title{font-size:11.5px;color:var(--muted)}
+
+  .messages-wrap{flex:1;overflow-y:auto;padding:14px 16px}
+  .messages-inner{max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+  .msg-bubble{max-width:75%;padding:9px 13px;border-radius:14px;font-size:14px;line-height:1.5;position:relative}
+  .msg-other{align-self:flex-start;background:#fff;border:1px solid var(--border);border-bottom-right-radius:4px}
+  .msg-own{align-self:flex-end;background:var(--green);color:#fff;border-bottom-left-radius:4px}
+  .msg-time{font-size:10px;opacity:.7;margin-top:3px;display:block;text-align:left}
+  .msg-image{max-width:100%;border-radius:10px;display:block;margin-top:2px;cursor:pointer}
+  .empty-note{text-align:center;color:var(--muted);font-size:13px;padding:30px 16px}
+
+  .composer{
+    flex-shrink:0;background:#fff;border-top:1px solid var(--border);padding:10px 12px;
+    display:flex;gap:8px;align-items:flex-end;max-width:780px;margin:0 auto;width:100%
+  }
+  .composer-input{
+    flex:1;border:1.5px solid var(--border);border-radius:20px;padding:10px 16px;font-family:inherit;
+    font-size:14px;resize:none;max-height:100px;line-height:1.4
+  }
+  .composer-input:focus{outline:none;border-color:var(--green)}
+  .icon-btn{
+    width:42px;height:42px;border-radius:50%;border:none;background:var(--bg);color:var(--green);
+    font-size:18px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center
+  }
+  .send-btn{background:var(--green);color:#fff}
+  .icon-btn:disabled{opacity:.5;cursor:default}
+  #imageInput{display:none}
+  .status-note{text-align:center;font-size:12px;color:var(--muted);padding:6px}
+  .status-note.error{color:#c0392b}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="back-link" href="/messages">←</a>
+    <div class="chat-avatar" id="chatAvatar">م</div>
+    <div>
+      <div class="chat-name" id="chatName">جاري التحميل...</div>
+      <div class="chat-ad-title" id="chatAdTitle"></div>
+    </div>
+  </div>
+</header>
+
+<div class="messages-wrap" id="messagesWrap">
+  <div class="messages-inner" id="messagesInner">
+    <div class="empty-note">جاري تحميل المحادثة...</div>
+  </div>
+</div>
+
+<div class="status-note" id="statusNote"></div>
+
+<div class="composer" id="composer" style="display:none">
+  <button type="button" class="icon-btn" id="imageBtn" title="إرسال صورة">📷</button>
+  <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp">
+  <textarea id="messageInput" class="composer-input" placeholder="اكتب رسالة..." rows="1"></textarea>
+  <button type="button" class="icon-btn send-btn" id="sendBtn">➤</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+const CHAT_IMAGES_PREFIX_SIGN = `${SUPABASE_URL}/storage/v1/object/sign/chat-images/`;
+const MAX_IMAGE_MB = 8;
+const ALLOWED_TYPES = ['image/jpeg','image/png','image/webp'];
+
+let session = null;
+let conversationId = null;
+let otherUserId = null;
+let isSending = false;
+let renderedIds = new Set();
+let signedUrlCache = new Map(); // path -> {url, expiresAt}
+let realtimeChannel = null;
+
+function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/messages';
+    return false;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+    return true;
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/messages';
+    return false;
+  }
+}
+const hasSession = checkAuth();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatTime(iso){
+  return new Date(iso).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
+}
+function setStatus(text, isError){
+  const el = document.getElementById('statusNote');
+  el.textContent = text || '';
+  el.className = 'status-note' + (isError ? ' error' : '');
+}
+
+async function fetchWithRetry(url, options, attempts){
+  attempts = attempts || 5;
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await fetch(url, options);
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1){
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function scrollToBottom(){
+  const wrap = document.getElementById('messagesWrap');
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+// يحوّل مسار صورة خاص (chat-images) لرابط موقّع صالح مؤقتاً — نفس
+// آلية resolveImageUrl بالتطبيق بالضبط، مع كاش بسيط لتفادي طلبات مكررة.
+async function resolveImageUrl(path){
+  const cached = signedUrlCache.get(path);
+  if(cached && Date.now() < cached.expiresAt) return cached.url;
+  const res = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/sign/chat-images/${path}`, {
+    method: 'POST',
+    headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type':'application/json'},
+    body: JSON.stringify({expiresIn: 3600})
+  }, 3);
+  if(!res.ok) return null;
+  const data = await res.json();
+  const url = `${SUPABASE_URL}/storage/v1${data.signedURL}`;
+  signedUrlCache.set(path, {url, expiresAt: Date.now() + 55*60*1000});
+  return url;
+}
+
+async function renderMessage(msg){
+  if(renderedIds.has(msg.id)) return;
+  renderedIds.add(msg.id);
+
+  const isOwn = msg.sender_id === session.user.id;
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-bubble ' + (isOwn ? 'msg-own' : 'msg-other');
+
+  if(msg.content){
+    const p = document.createElement('div');
+    p.textContent = msg.content;
+    wrap.appendChild(p);
+  }
+  if(msg.image_url){
+    const img = document.createElement('img');
+    img.className = 'msg-image';
+    img.alt = 'صورة';
+    wrap.appendChild(img);
+    resolveImageUrl(msg.image_url).then(url => { if(url) img.src = url; });
+  }
+  const time = document.createElement('span');
+  time.className = 'msg-time';
+  time.textContent = formatTime(msg.created_at);
+  wrap.appendChild(time);
+
+  document.getElementById('messagesInner').appendChild(wrap);
+  scrollToBottom();
+
+  // لو الرسالة الجديدة من الطرف الثاني وأنا فاتح المحادثة الآن، أعلّمها مقروءة فوراً
+  if(!isOwn){
+    markConversationRead();
+  }
+}
+
+async function markConversationRead(){
+  try{
+    await fetchWithRetry(`${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&sender_id=neq.${session.user.id}&is_read=eq.false`, {
+      method: 'PATCH',
+      headers:{
+        apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({is_read: true})
+    }, 3);
+  }catch(e){ /* غير حرج — لو فشل، تُحاول مرة ثانية بالفتحة الجاية */ }
+}
+
+// ---------- تحميل المحادثة ----------
+async function loadChat(){
+  const params = new URLSearchParams(window.location.search);
+  conversationId = params.get('id');
+  if(!conversationId){
+    document.getElementById('chatName').textContent = 'محادثة غير محددة';
+    setTimeout(()=>{ window.location.href = '/messages'; }, 1500);
+    return;
+  }
+
+  try{
+    // 1) التأكد من عضوية المحادثة فعلياً (RLS تمنع الوصول أصلاً، هذا فقط
+    //    لعرض رسالة واضحة بدل شاشة فاضية لو حاول أحد فتح محادثة لا تخصه)
+    const convRes = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}&select=id,ad_id,buyer_id,seller_id`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
+    );
+    if(!convRes.ok) throw new Error('تعذر تحميل المحادثة');
+    const convRows = await convRes.json();
+    const conv = Array.isArray(convRows) ? convRows[0] : null;
+    if(!conv){
+      document.getElementById('chatName').textContent = 'هذه المحادثة غير متاحة لك';
+      setTimeout(()=>{ window.location.href = '/messages'; }, 1800);
+      return;
+    }
+    otherUserId = conv.buyer_id === session.user.id ? conv.seller_id : conv.buyer_id;
+
+    // 2) بيانات الطرف الآخر
+    const profRes = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${otherUserId}&select=full_name,avatar_url`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
+    );
+    const profRows = profRes.ok ? await profRes.json() : [];
+    const other = profRows[0] || {};
+    const name = other.full_name || 'مستخدم';
+    document.getElementById('chatName').textContent = name;
+    document.getElementById('chatAvatar').innerHTML = other.avatar_url
+      ? `<img src="${escapeHtml(other.avatar_url)}">` : escapeHtml(name[0] || 'م');
+
+    // 3) عنوان الإعلان المرتبط (اختياري، للسياق فقط)
+    if(conv.ad_id){
+      const adRes = await fetchWithRetry(
+        `${SUPABASE_URL}/rest/v1/ads?id=eq.${conv.ad_id}&select=title`,
+        {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3
+      );
+      const adRows = adRes.ok ? await adRes.json() : [];
+      if(adRows[0]) document.getElementById('chatAdTitle').textContent = adRows[0].title;
+    }
+
+    // 4) الرسائل بترتيب زمني
+    const msgRes = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&select=id,sender_id,content,image_url,created_at&order=created_at.asc`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
+    );
+    if(!msgRes.ok) throw new Error('تعذر تحميل الرسائل');
+    const messages = await msgRes.json();
+    const inner = document.getElementById('messagesInner');
+    inner.innerHTML = '';
+    if(!Array.isArray(messages) || messages.length === 0){
+      inner.innerHTML = '<div class="empty-note">لا توجد رسائل بعد — ابدأ المحادثة</div>';
+    }else{
+      for(const m of messages) await renderMessage(m);
+    }
+    scrollToBottom();
+    markConversationRead();
+
+    document.getElementById('composer').style.display = 'flex';
+    subscribeRealtime();
+  }catch(e){
+    console.error('فشل تحميل المحادثة:', e);
+    setStatus('تعذر تحميل المحادثة: ' + (e.message || ''), true);
+  }
+}
+if(hasSession) loadChat();
+
+// ---------- Realtime (Supabase JS، هذي الصفحة فقط) ----------
+function subscribeRealtime(){
+  if(realtimeChannel) return; // منع أي اشتراك مكرر لنفس الصفحة
+
+  const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    realtime: { params: { eventsPerSecond: 10 } }
+  });
+  // لازم نمرر جلسة المستخدم صراحة عشان RLS تتحقق صح على قناة Realtime
+  supabase.realtime.setAuth(session.access_token);
+
+  realtimeChannel = supabase
+    .channel('chat-' + conversationId)
+    .on('postgres_changes', {
+      event: 'INSERT', schema: 'public', table: 'messages',
+      filter: 'conversation_id=eq.' + conversationId
+    }, (payload) => {
+      // إزالة رسالة "لا توجد رسائل بعد" لو كانت ظاهرة
+      const emptyNote = document.querySelector('#messagesInner .empty-note');
+      if(emptyNote) emptyNote.remove();
+      renderMessage(payload.new);
+    })
+    .subscribe();
+
+  // تنظيف الاشتراك عند مغادرة الصفحة
+  window.addEventListener('beforeunload', () => {
+    if(realtimeChannel) supabase.removeChannel(realtimeChannel);
+  });
+}
+
+// ---------- الإرسال ----------
+async function sendMessage(){
+  const input = document.getElementById('messageInput');
+  const content = input.value.trim();
+  if(!content || isSending) return;
+
+  isSending = true;
+  document.getElementById('sendBtn').disabled = true;
+  input.value = '';
+  input.style.height = 'auto';
+
+  try{
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/messages`, {
+      method: 'POST',
+      headers:{
+        apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
+        'content-type': 'application/json', Prefer: 'return=representation'
+      },
+      body: JSON.stringify({conversation_id: conversationId, sender_id: session.user.id, content})
+    }, 3);
+    const data = await res.json();
+    if(!res.ok){
+      throw new Error((data && (data.message || data.error_description)) || 'تعذر إرسال الرسالة');
+    }
+    const emptyNote = document.querySelector('#messagesInner .empty-note');
+    if(emptyNote) emptyNote.remove();
+    await renderMessage(Array.isArray(data) ? data[0] : data);
+
+    // تحديث last_message_at بالمحادثة (نفس خطوة التطبيق بعد كل رسالة)
+    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
+      method: 'PATCH',
+      headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type':'application/json'},
+      body: JSON.stringify({last_message_at: new Date().toISOString()})
+    }, 3).catch(()=>{});
+  }catch(e){
+    setStatus(e.message || 'تعذر إرسال الرسالة، حاول مرة أخرى', true);
+    input.value = content; // إعادة النص للمستخدم عشان ما يضيع
+  }finally{
+    isSending = false;
+    document.getElementById('sendBtn').disabled = false;
+  }
+}
+
+document.getElementById('sendBtn').addEventListener('click', sendMessage);
+document.getElementById('messageInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter' && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+document.getElementById('messageInput').addEventListener('input', function(){
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+
+// ---------- إرسال صورة ----------
+document.getElementById('imageBtn').addEventListener('click', function(){
+  document.getElementById('imageInput').click();
+});
+document.getElementById('imageInput').addEventListener('change', async function(e){
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file || isSending) return;
+
+  if(!ALLOWED_TYPES.includes(file.type)){
+    setStatus('صيغة غير مدعومة (JPG/PNG/WEBP فقط)', true);
+    return;
+  }
+  if(file.size > MAX_IMAGE_MB * 1024 * 1024){
+    setStatus(`الحجم أكبر من ${MAX_IMAGE_MB} ميغابايت`, true);
+    return;
+  }
+
+  isSending = true;
+  document.getElementById('imageBtn').disabled = true;
+  setStatus('جاري رفع الصورة...');
+
+  try{
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${conversationId}/${session.user.id}/${Date.now()}.${ext}`;
+
+    const upRes = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/chat-images/${path}`, {
+      method: 'POST',
+      headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type': file.type},
+      body: file
+    }, 3);
+    if(!upRes.ok){
+      const err = await upRes.json().catch(()=>({}));
+      throw new Error(err.message || 'تعذر رفع الصورة');
+    }
+
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/messages`, {
+      method: 'POST',
+      headers:{
+        apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
+        'content-type': 'application/json', Prefer: 'return=representation'
+      },
+      body: JSON.stringify({conversation_id: conversationId, sender_id: session.user.id, image_url: path})
+    }, 3);
+    const data = await res.json();
+    if(!res.ok){
+      throw new Error((data && data.message) || 'تعذر تسجيل الصورة بالمحادثة');
+    }
+    const emptyNote = document.querySelector('#messagesInner .empty-note');
+    if(emptyNote) emptyNote.remove();
+    await renderMessage(Array.isArray(data) ? data[0] : data);
+
+    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
+      method: 'PATCH',
+      headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type':'application/json'},
+      body: JSON.stringify({last_message_at: new Date().toISOString()})
+    }, 3).catch(()=>{});
+
+    setStatus('');
+  }catch(e){
+    setStatus(e.message || 'تعذر إرسال الصورة، حاول مرة أخرى', true);
+  }finally{
+    isSending = false;
+    document.getElementById('imageBtn').disabled = false;
+  }
+});
+</script>
+
+</body>
+</html>

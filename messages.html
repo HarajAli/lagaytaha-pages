@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الرسائل - لقيتها</title>
+<meta name="description" content="محادثاتك على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .page-head{padding:22px 16px 10px}
+  .page-head h1{font-size:20px;margin:0 0 4px}
+  .page-head p{margin:0;font-size:13px;color:var(--muted)}
+
+  .wrap{max-width:640px;margin:0 auto;padding:10px 16px 40px}
+  .conv-list{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .conv-row{
+    display:flex;align-items:center;gap:12px;padding:14px;border-bottom:1px solid var(--border);
+    cursor:pointer;position:relative
+  }
+  .conv-row:last-child{border-bottom:none}
+  .conv-row:hover{background:var(--bg)}
+  .conv-avatar{
+    width:48px;height:48px;border-radius:50%;background:var(--green);color:#fff;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;overflow:hidden
+  }
+  .conv-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .conv-body{flex:1;min-width:0}
+  .conv-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .conv-name{font-size:14.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .conv-time{font-size:11px;color:var(--muted);flex-shrink:0}
+  .conv-ad{font-size:11.5px;color:var(--green);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .conv-last{font-size:13px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .unread-badge{
+    background:var(--green);color:#fff;font-size:11px;font-weight:800;border-radius:20px;
+    min-width:20px;height:20px;display:flex;align-items:center;justify-content:center;padding:0 6px;flex-shrink:0
+  }
+
+  .empty-note{text-align:center;color:var(--muted);font-size:13px;padding:40px 16px}
+  .empty-note a{color:var(--green);font-weight:700}
+
+  footer{margin-top:20px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="page-head">
+  <h1>الرسائل</h1>
+  <p>كل محادثاتك على لقيتها</p>
+</div>
+
+<div class="wrap">
+  <div class="conv-list" id="convList">
+    <div class="empty-note">جاري التحميل...</div>
+  </div>
+</div>
+
+<footer>© 2026 لقيتها. جميع الحقوق محفوظة.</footer>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+
+let session = null;
+
+function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/messages';
+    return false;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+    return true;
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/messages';
+    return false;
+  }
+}
+const hasSession = checkAuth();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeAgo(iso){
+  if(!iso) return '';
+  const diff = (Date.now() - new Date(iso).getTime())/1000;
+  if(diff < 60) return 'الآن';
+  if(diff < 3600) return 'منذ ' + Math.floor(diff/60) + ' د';
+  if(diff < 86400) return 'منذ ' + Math.floor(diff/3600) + ' س';
+  return 'منذ ' + Math.floor(diff/86400) + ' يوم';
+}
+
+async function fetchWithRetry(url, options, attempts){
+  attempts = attempts || 5;
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await fetch(url, options);
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1){
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function convRowHtml(c){
+  const name = c.other_user_name || 'مستخدم';
+  const initial = escapeHtml(name[0] || 'م');
+  const avatar = c.other_user_avatar
+    ? `<img src="${escapeHtml(c.other_user_avatar)}">`
+    : initial;
+  return `<div class="conv-row" onclick="location.href='/chat?id=${escapeHtml(c.id)}'">
+    <div class="conv-avatar">${avatar}</div>
+    <div class="conv-body">
+      <div class="conv-top">
+        <span class="conv-name">${escapeHtml(name)}</span>
+        <span class="conv-time">${timeAgo(c.last_message_at)}</span>
+      </div>
+      ${c.ad_title ? `<div class="conv-ad">${escapeHtml(c.ad_title)}</div>` : ''}
+      <div class="conv-last">${escapeHtml(c.last_message_text || 'ابدأ المحادثة الآن')}</div>
+    </div>
+    ${c.unread_count > 0 ? `<span class="unread-badge">${c.unread_count}</span>` : ''}
+  </div>`;
+}
+
+async function loadConversations(){
+  const list = document.getElementById('convList');
+  try{
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/rpc/fetch_conversations_with_meta`, {
+      method: 'POST',
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + session.access_token,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({p_uid: session.user.id})
+    }, 5);
+    if(!res.ok){
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.message || 'تعذر تحميل المحادثات');
+    }
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length === 0){
+      list.innerHTML = '<div class="empty-note">ما عندك محادثات بعد.<br><a href="/">تصفح الإعلانات وابدأ محادثة</a></div>';
+      return;
+    }
+    list.innerHTML = data.map(convRowHtml).join('');
+  }catch(e){
+    console.error('فشل تحميل المحادثات:', e);
+    list.innerHTML = '<div class="empty-note">تعذر تحميل المحادثات، حاول تحديث الصفحة</div>';
+  }
+}
+if(hasSession) loadConversations();
+</script>
+
+</body>
+</html>
