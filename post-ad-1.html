@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>نشر إعلان جديد - لقيتها</title>
+<meta name="description" content="أضف إعلانك مجاناً على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--green-dark:#0b5443;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .wrap{max-width:640px;margin:0 auto;padding:22px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px 20px}
+  h1{font-size:20px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+
+  label{font-size:13px;font-weight:600;display:block;margin:16px 0 6px}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;
+    font-family:inherit;font-size:14px;background:#fff;color:var(--text)
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
+  textarea{resize:vertical;min-height:90px;line-height:1.6}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:480px){.row2{grid-template-columns:1fr}}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+  .check-row{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .check-row input{width:16px;height:16px;accent-color:var(--green)}
+  .check-row label{margin:0;font-weight:500;font-size:13.5px}
+
+  .img-drop{
+    margin-top:8px;border:1.5px dashed var(--border);border-radius:12px;padding:18px;
+    text-align:center;cursor:pointer;background:#fafaf9
+  }
+  .img-drop:hover{border-color:var(--green)}
+  .img-drop .ic{font-size:24px;margin-bottom:6px}
+  .img-drop .t{font-size:13px;font-weight:600;color:var(--green)}
+  .img-drop .t2{font-size:11.5px;color:var(--muted);margin-top:2px}
+  #fileInput{display:none}
+
+  .img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  @media(max-width:480px){.img-grid{grid-template-columns:repeat(3,1fr)}}
+  .img-thumb{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#eee}
+  .img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .img-thumb .rm{
+    position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;border:none;
+    width:22px;height:22px;border-radius:50%;font-size:13px;cursor:pointer;line-height:1
+  }
+  .img-thumb .idx{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;
+    font-size:10px;padding:1px 6px;border-radius:5px;font-weight:700}
+
+  .btn{width:100%;background:var(--green);color:#fff;border:none;padding:14px;border-radius:10px;
+    font-weight:700;font-size:15px;margin-top:22px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px;line-height:1.6}
+  .msg.error{color:#c0392b}
+  .msg.ok{color:var(--green)}
+  .progress{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;min-height:16px}
+
+  footer{margin-top:30px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+  footer a{color:var(--green);margin:0 6px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card">
+    <h1>نشر إعلان جديد</h1>
+    <p class="sub">عبّي البيانات وأضف صور واضحة لزيادة فرص البيع</p>
+
+    <form id="adForm" onsubmit="return false">
+
+      <label>القسم الرئيسي</label>
+      <select id="mainCategory"><option value="">اختر القسم</option></select>
+
+      <div id="subCategoryWrap" class="hidden">
+        <label>القسم الفرعي</label>
+        <select id="subCategory"><option value="">اختر القسم الفرعي</option></select>
+      </div>
+
+      <label>عنوان الإعلان</label>
+      <input id="title" type="text" placeholder="مثال: آيفون 13 برو بحالة ممتازة" maxlength="150">
+
+      <label>الوصف</label>
+      <textarea id="description" placeholder="اكتب تفاصيل عن السلعة، الحالة، سبب البيع، إلخ (اختياري)"></textarea>
+
+      <div class="row2">
+        <div>
+          <label>السعر (ريال يمني)</label>
+          <input id="price" type="number" min="0" placeholder="اختياري">
+        </div>
+        <div>
+          <label>الحالة</label>
+          <select id="condition">
+            <option value="">غير محدد</option>
+            <option value="new">جديد</option>
+            <option value="used">مستعمل</option>
+            <option value="refurbished">مجدد</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>المحافظة</label>
+          <select id="governorate"><option value="">اختياري</option></select>
+        </div>
+        <div>
+          <label>المدينة</label>
+          <select id="city"><option value="">اختر المحافظة أولاً</option></select>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="allowCalls" checked>
+        <label for="allowCalls">السماح بالاتصال المباشر</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="allowWhatsapp" checked>
+        <label for="allowWhatsapp">السماح بالتواصل عبر واتساب</label>
+      </div>
+
+      <label>الصور (حتى 10 صور)</label>
+      <div class="img-drop" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="ic">📷</div>
+        <div class="t">اضغط لإضافة صور</div>
+        <div class="t2">JPG, PNG أو WEBP — حتى 8 ميغابايت لكل صورة</div>
+      </div>
+      <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+      <div class="img-grid" id="imgGrid"></div>
+      <div class="hint" id="imgCount">0 من 10 صور</div>
+
+      <button class="btn" id="submitBtn" onclick="submitAd()">نشر الإعلان</button>
+      <div class="progress" id="progress"></div>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div>
+    <a href="/privacy">الخصوصية</a> ·
+    <a href="/terms">الشروط</a> ·
+    <a href="/delete-account">حذف الحساب</a>
+  </div>
+  <div style="margin-top:10px">© 2026 لقيتها. جميع الحقوق محفوظة.</div>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+const MAX_IMAGES = 10;
+const MAX_IMAGE_MB = 8;
+const ALLOWED_TYPES = ['image/jpeg','image/png','image/webp','image/gif'];
+
+const MAIN_CATEGORIES = [
+  {id:1, name:'سيارات'},
+  {id:2, name:'عقارات'},
+  {id:3, name:'إلكترونيات'},
+  {id:4, name:'مواشي وحيوانات'},
+  {id:5, name:'أثاث ومفروشات'},
+  {id:6, name:'ملابس وأزياء'},
+  {id:7, name:'خدمات'},
+  {id:28, name:'أخرى'},
+];
+
+let session = null;
+let selectedFiles = []; // {file, previewUrl}
+
+// ---------- تحقق الجلسة ----------
+(function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/post-ad';
+    return;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/post-ad';
+  }
+})();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function apiGet(path){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+SUPABASE_ANON_KEY}
+  });
+  if(!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+// ---------- الأقسام ----------
+function renderMainCategories(){
+  const sel = document.getElementById('mainCategory');
+  sel.innerHTML = '<option value="">اختر القسم</option>' +
+    MAIN_CATEGORIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+renderMainCategories();
+
+document.getElementById('mainCategory').addEventListener('change', async function(){
+  const mainId = this.value;
+  const subWrap = document.getElementById('subCategoryWrap');
+  const subSel = document.getElementById('subCategory');
+  subSel.innerHTML = '<option value="">اختر القسم الفرعي</option>';
+  subWrap.classList.add('hidden');
+  if(!mainId) return;
+
+  const subs = await apiGet(`categories?parent_id=eq.${mainId}&is_active=eq.true&order=order_index&select=id,name_ar`);
+  if(subs.length){
+    subSel.innerHTML += subs.map(c => `<option value="${c.id}">${escapeHtml(c.name_ar)}</option>`).join('');
+    subWrap.classList.remove('hidden');
+  }
+});
+
+// ---------- المحافظات والمدن ----------
+async function loadGovernorates(){
+  const govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar');
+  const sel = document.getElementById('governorate');
+  sel.innerHTML = '<option value="">اختياري</option>' +
+    govs.map(g => `<option value="${g.id}">${escapeHtml(g.name_ar)}</option>`).join('');
+}
+loadGovernorates();
+
+document.getElementById('governorate').addEventListener('change', async function(){
+  const govId = this.value;
+  const citySel = document.getElementById('city');
+  if(!govId){
+    citySel.innerHTML = '<option value="">اختر المحافظة أولاً</option>';
+    return;
+  }
+  citySel.innerHTML = '<option value="">جاري التحميل...</option>';
+  const cities = await apiGet(`cities?governorate_id=eq.${govId}&is_active=eq.true&order=name_ar&select=id,name_ar`);
+  citySel.innerHTML = '<option value="">اختياري</option>' +
+    cities.map(c => `<option value="${c.id}">${escapeHtml(c.name_ar)}</option>`).join('');
+});
+
+// ---------- الصور ----------
+document.getElementById('fileInput').addEventListener('change', function(e){
+  handleNewFiles(Array.from(e.target.files || []));
+  e.target.value = '';
+});
+
+function handleNewFiles(files){
+  const msg = document.getElementById('msg');
+  msg.textContent = ''; msg.className = 'msg';
+
+  for(const file of files){
+    if(selectedFiles.length >= MAX_IMAGES){
+      msg.textContent = `الحد الأقصى ${MAX_IMAGES} صور — تم تجاهل باقي الصور المختارة`;
+      msg.className = 'msg error';
+      break;
+    }
+    if(!ALLOWED_TYPES.includes(file.type)){
+      msg.textContent = `الصورة "${file.name}" بصيغة غير مدعومة (JPG/PNG/WEBP فقط)`;
+      msg.className = 'msg error';
+      continue;
+    }
+    if(file.size > MAX_IMAGE_MB * 1024 * 1024){
+      msg.textContent = `الصورة "${file.name}" أكبر من ${MAX_IMAGE_MB} ميغابايت`;
+      msg.className = 'msg error';
+      continue;
+    }
+    selectedFiles.push({file, previewUrl: URL.createObjectURL(file)});
+  }
+  renderImageGrid();
+}
+
+function removeImage(idx){
+  URL.revokeObjectURL(selectedFiles[idx].previewUrl);
+  selectedFiles.splice(idx, 1);
+  renderImageGrid();
+}
+
+function renderImageGrid(){
+  const grid = document.getElementById('imgGrid');
+  grid.innerHTML = selectedFiles.map((f, i) => `
+    <div class="img-thumb">
+      <img src="${f.previewUrl}">
+      <span class="idx">${i+1}</span>
+      <button type="button" class="rm" onclick="removeImage(${i})">×</button>
+    </div>
+  `).join('');
+  document.getElementById('imgCount').textContent = `${selectedFiles.length} من ${MAX_IMAGES} صور`;
+  const dz = document.getElementById('dropZone');
+  dz.style.display = selectedFiles.length >= MAX_IMAGES ? 'none' : 'block';
+}
+
+// ---------- النشر ----------
+async function submitAd(){
+  const msg = document.getElementById('msg');
+  const progress = document.getElementById('progress');
+  const btn = document.getElementById('submitBtn');
+  msg.textContent = ''; msg.className = 'msg'; progress.textContent = '';
+
+  const mainCategory = document.getElementById('mainCategory').value;
+  const subCategory = document.getElementById('subCategory').value;
+  const title = document.getElementById('title').value.trim();
+  const description = document.getElementById('description').value.trim();
+  const priceRaw = document.getElementById('price').value;
+  const condition = document.getElementById('condition').value;
+  const governorateId = document.getElementById('governorate').value;
+  const cityId = document.getElementById('city').value;
+  const allowCalls = document.getElementById('allowCalls').checked;
+  const allowWhatsapp = document.getElementById('allowWhatsapp').checked;
+
+  const categoryId = subCategory || mainCategory;
+
+  if(!categoryId){
+    msg.textContent = 'الرجاء اختيار القسم';
+    msg.className = 'msg error';
+    return;
+  }
+  if(!title){
+    msg.textContent = 'الرجاء إدخال عنوان الإعلان';
+    msg.className = 'msg error';
+    return;
+  }
+  if(selectedFiles.length === 0){
+    msg.textContent = 'الرجاء إضافة صورة واحدة على الأقل';
+    msg.className = 'msg error';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'جاري النشر...';
+  progress.textContent = 'جاري إنشاء الإعلان...';
+
+  const uid = session.user.id;
+  const token = session.access_token;
+  let adId = null;
+  const uploadedPaths = [];
+
+  try{
+    // 1) إنشاء صف الإعلان أولاً — لا نرسل status/views_count/favorites_count/is_featured
+    //    أبداً، الـTrigger protect_ad_fields يتكفّل بها بقاعدة البيانات.
+    const body = {
+      user_id: uid,
+      category_id: Number(categoryId),
+      title,
+      currency: 'YER',
+      allow_calls: allowCalls,
+      allow_whatsapp: allowWhatsapp,
+    };
+    if(description) body.description = description;
+    if(priceRaw !== '') body.price = Number(priceRaw);
+    if(condition) body.condition = condition;
+    if(governorateId) body.governorate_id = Number(governorateId);
+    if(cityId) body.city_id = Number(cityId);
+
+    const adRes = await fetch(`${SUPABASE_URL}/rest/v1/ads`, {
+      method: 'POST',
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + token,
+        'content-type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify(body)
+    });
+    const adData = await adRes.json();
+    if(!adRes.ok){
+      // نعرض رسالة الـTrigger/RLS كما هي (مثل رسائل تأكيد البريد أو الحظر)
+      const errText = (adData && (adData.message || adData.error_description || adData.msg)) || 'تعذر إنشاء الإعلان';
+      throw new Error(errText);
+    }
+    adId = Array.isArray(adData) ? adData[0].id : adData.id;
+
+    // 2) رفع الصور بالتسلسل لمسار {uid}/{adId}/... ثم تسجيلها بـad_images
+    for(let i = 0; i < selectedFiles.length; i++){
+      progress.textContent = `جاري رفع الصورة ${i+1} من ${selectedFiles.length}...`;
+      const {file} = selectedFiles[i];
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${uid}/${adId}/${Date.now()}_${i}.${ext}`;
+
+      const upRes = await fetch(`${SUPABASE_URL}/storage/v1/object/ad-images/${path}`, {
+        method: 'POST',
+        headers:{
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + token,
+          'content-type': file.type
+        },
+        body: file
+      });
+      if(!upRes.ok){
+        const upErr = await upRes.json().catch(()=>({}));
+        throw new Error(upErr.message || `تعذر رفع الصورة ${i+1}`);
+      }
+      uploadedPaths.push(path);
+
+      const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/ad-images/${path}`;
+      const imgRes = await fetch(`${SUPABASE_URL}/rest/v1/ad_images`, {
+        method: 'POST',
+        headers:{
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: 'Bearer ' + token,
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({ad_id: adId, image_url: imageUrl, order_index: i})
+      });
+      if(!imgRes.ok){
+        const imgErr = await imgRes.json().catch(()=>({}));
+        throw new Error(imgErr.message || `تعذر تسجيل الصورة ${i+1}`);
+      }
+    }
+
+    progress.textContent = '';
+    msg.textContent = 'تم نشر الإعلان بنجاح! جاري التحويل...';
+    msg.className = 'msg ok';
+    setTimeout(()=>{ window.location.href = '/ad/' + adId; }, 900);
+
+  }catch(e){
+    progress.textContent = '';
+    msg.textContent = e.message || 'حدث خطأ أثناء النشر، حاول مرة أخرى';
+    msg.className = 'msg error';
+    btn.disabled = false;
+    btn.textContent = 'نشر الإعلان';
+
+    // تنظيف: حذف الصور المرفوعة بـStorage + حذف صف الإعلان (يحذف ad_images تلقائياً بالتتابع)
+    for(const p of uploadedPaths){
+      try{
+        await fetch(`${SUPABASE_URL}/storage/v1/object/ad-images/${p}`, {
+          method: 'DELETE',
+          headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+        });
+      }catch(_){}
+    }
+    if(adId){
+      try{
+        await fetch(`${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}`, {
+          method: 'DELETE',
+          headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+        });
+      }catch(_){}
+    }
+  }
+}
+</script>
+
+</body>
+</html>
