@@ -341,7 +341,10 @@ async function loadAd(){
       `${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}&select=${encodeURIComponent(fields)}`,
       {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3
     );
-    if(!res.ok) throw new Error('تعذر تحميل بيانات الإعلان');
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(`(${res.status}) ${errBody.message || errBody.error_description || errBody.msg || 'تعذر تحميل بيانات الإعلان'}`);
+    }
     const rows = await res.json();
     const ad = Array.isArray(rows) ? rows[0] : null;
 
@@ -381,7 +384,8 @@ async function loadAd(){
     loadingCard.classList.add('hidden');
     document.getElementById('formCard').classList.remove('hidden');
   }catch(e){
-    loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">حاول تحديث الصفحة، أو ارجع لإعلاناتي.</p>';
+    console.error('فشل تحميل الإعلان للتعديل:', e);
+    loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">السبب الفني: ' + escapeHtml(e.message || String(e)) + '</p><p class="sub">حاول تحديث الصفحة، أو ارجع لإعلاناتي.</p>';
   }
 }
 loadAd();
