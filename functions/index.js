@@ -252,7 +252,7 @@ export async function onRequestGet() {
     <h3>عندك شيء للبيع؟</h3>
     <p>أضف إعلانك الآن ووصل لآلاف المشترين في جميع أنحاء اليمن.</p>
   </div>
-  <a class="cta-btn" href="${PLAY_STORE_URL}">أضف إعلانك مجاناً</a>
+  <a class="cta-btn" href="/post-ad">أضف إعلانك مجاناً</a>
 </div>
 
 <footer>
