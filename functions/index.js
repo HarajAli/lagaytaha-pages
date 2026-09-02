@@ -142,8 +142,23 @@ export async function onRequestGet() {
   .header-right{display:flex;align-items:center;gap:10px}
   .header-cta{background:var(--green);color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;white-space:nowrap}
   .login-link{font-size:13px;font-weight:700;color:var(--green);white-space:nowrap}
-  .user-chip{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700}
-  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+  .user-chip{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;cursor:pointer;background:none;border:none;font-family:inherit;padding:6px 4px;border-radius:8px}
+  .user-chip:hover{background:var(--bg)}
+  .user-avatar{width:28px;height:28px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;overflow:hidden}
+  .user-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+  .account-menu-wrap{position:relative}
+  .account-dropdown{
+    position:absolute;top:calc(100% + 8px);left:0;background:#fff;border:1px solid var(--border);
+    border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);min-width:190px;padding:6px;z-index:30;
+    display:none
+  }
+  .account-dropdown.show{display:block}
+  .account-dropdown a,.account-dropdown button{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:right;padding:10px 12px;border-radius:8px;
+    font-family:inherit;font-size:13.5px;font-weight:600;color:var(--text);background:none;border:none;cursor:pointer
+  }
+  .account-dropdown a:hover,.account-dropdown button:hover{background:var(--bg)}
+  .account-dropdown .logout-item{color:#c0392b;border-top:1px solid var(--border);margin-top:4px;padding-top:10px}
   .logout-btn{font-size:12px;color:#c0392b;font-weight:700;background:none;border:none;cursor:pointer;font-family:inherit}
 
   .hero{background:var(--green);color:#fff;border-radius:0 0 20px 20px;padding:28px 16px 32px}
@@ -277,12 +292,32 @@ function renderAuthArea(){
     const session = JSON.parse(raw);
     const name = (session.user && session.user.user_metadata && session.user.user_metadata.full_name) || (session.user && session.user.email) || 'حسابي';
     const initial = escapeHtml(name[0] || 'م');
+    const avatarUrl = session.user && session.user.user_metadata && session.user.user_metadata.avatar_url;
     el.innerHTML = \`
-      <div class="user-chip">
-        <div class="user-avatar">\${initial}</div>
-        <span>\${escapeHtml(name.split(' ')[0])}</span>
-      </div>
-      <button class="logout-btn" onclick="doLogout()">خروج</button>\`;
+      <div class="account-menu-wrap">
+        <button class="user-chip" id="accountMenuBtn" type="button">
+          <div class="user-avatar">\${avatarUrl ? '<img src="'+escapeHtml(avatarUrl)+'">' : initial}</div>
+          <span>\${escapeHtml(name.split(' ')[0])}</span>
+        </button>
+        <div class="account-dropdown" id="accountDropdown">
+          <a href="/profile">👤 الملف الشخصي</a>
+          <a href="/my-ads">📢 إعلاناتي</a>
+          <a href="/settings">⚙️ الإعدادات</a>
+          <button type="button" class="logout-item" onclick="doLogout()">🚪 تسجيل الخروج</button>
+        </div>
+      </div>\`;
+
+    const btn = document.getElementById('accountMenuBtn');
+    const dropdown = document.getElementById('accountDropdown');
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      dropdown.classList.toggle('show');
+    });
+    document.addEventListener('click', function(e){
+      if(!e.target.closest('.account-menu-wrap')){
+        dropdown.classList.remove('show');
+      }
+    });
   }catch(e){
     localStorage.removeItem('laqaytaha_session');
   }
