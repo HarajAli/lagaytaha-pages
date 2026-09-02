@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الملف الشخصي - لقيتها</title>
+<meta name="description" content="إدارة ملفك الشخصي على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--green-dark:#0b5443;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px 20px}
+  h1{font-size:20px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+
+  .avatar-row{display:flex;align-items:center;gap:16px;margin-bottom:22px}
+  .avatar-preview{
+    width:76px;height:76px;border-radius:50%;background:var(--green);color:#fff;overflow:hidden;
+    display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex-shrink:0
+  }
+  .avatar-preview img{width:100%;height:100%;object-fit:cover;display:block}
+  .avatar-actions{display:flex;flex-direction:column;gap:6px}
+  .avatar-btn{
+    font-size:12.5px;font-weight:700;color:var(--green);background:none;border:1.5px solid var(--green);
+    border-radius:8px;padding:7px 14px;cursor:pointer;font-family:inherit;width:fit-content
+  }
+  #avatarInput{display:none}
+
+  .stats-row{display:flex;gap:10px;margin-bottom:22px}
+  .stat-box{flex:1;background:var(--bg);border-radius:10px;padding:12px;text-align:center}
+  .stat-box .v{font-size:16px;font-weight:800;color:var(--green)}
+  .stat-box .l{font-size:11px;color:var(--muted);margin-top:2px}
+
+  label{font-size:13px;font-weight:600;display:block;margin:16px 0 6px}
+  input[type=text],select,textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;
+    font-family:inherit;font-size:14px;background:#fff;color:var(--text)
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
+  textarea{resize:vertical;min-height:80px;line-height:1.6}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:480px){.row2{grid-template-columns:1fr}}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .verified-badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--green);font-weight:700;margin-right:6px}
+
+  .btn{width:100%;background:var(--green);color:#fff;border:none;padding:14px;border-radius:10px;
+    font-weight:700;font-size:15px;margin-top:22px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px;line-height:1.6}
+  .msg.error{color:#c0392b}
+  .msg.ok{color:var(--green)}
+
+  footer{margin-top:30px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+  footer a{color:var(--green);margin:0 6px}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card" id="loadingCard">
+    <h1>جاري التحميل...</h1>
+    <p class="sub">لحظات ونعرض ملفك الشخصي</p>
+  </div>
+
+  <div class="card hidden" id="formCard">
+    <h1>الملف الشخصي</h1>
+    <p class="sub">بياناتك الظاهرة للآخرين على لقيتها</p>
+
+    <div class="avatar-row">
+      <div class="avatar-preview" id="avatarPreview">م</div>
+      <div class="avatar-actions">
+        <button type="button" class="avatar-btn" onclick="document.getElementById('avatarInput').click()">تغيير الصورة</button>
+        <div class="hint" id="avatarHint"></div>
+      </div>
+      <input id="avatarInput" type="file" accept="image/jpeg,image/png,image/webp">
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="v" id="statRating">—</div><div class="l">التقييم</div></div>
+      <div class="stat-box"><div class="v" id="statCount">—</div><div class="l">عدد التقييمات</div></div>
+      <div class="stat-box"><div class="v" id="statJoined">—</div><div class="l">عضو منذ</div></div>
+    </div>
+
+    <form id="profileForm" onsubmit="return false">
+      <label>الاسم الكامل <span id="verifiedBadge" class="verified-badge hidden">✓ موثّق</span></label>
+      <input id="fullName" type="text" maxlength="80">
+
+      <label>Username</label>
+      <input id="username" type="text" maxlength="30" placeholder="بدون @، أحرف وأرقام فقط">
+      <div class="hint" id="usernameHint"></div>
+
+      <label>النبذة الشخصية</label>
+      <textarea id="bio" maxlength="200" placeholder="اكتب نبذة قصيرة عنك (اختياري)"></textarea>
+
+      <div class="row2">
+        <div>
+          <label>المحافظة</label>
+          <select id="governorate"><option value="">اختياري</option></select>
+        </div>
+        <div>
+          <label>المدينة</label>
+          <select id="city"><option value="">اختر المحافظة أولاً</option></select>
+        </div>
+      </div>
+
+      <button class="btn" id="saveBtn" onclick="saveProfile()">حفظ التعديلات</button>
+      <div class="msg" id="msg"></div>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div>
+    <a href="/privacy">الخصوصية</a> ·
+    <a href="/terms">الشروط</a> ·
+    <a href="/delete-account">حذف الحساب</a>
+  </div>
+  <div style="margin-top:10px">© 2026 لقيتها. جميع الحقوق محفوظة.</div>
+</footer>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+const MAX_AVATAR_MB = 5;
+const ALLOWED_TYPES = ['image/jpeg','image/png','image/webp'];
+
+let session = null;
+let isSaving = false;
+let pendingAvatarFile = null;
+
+// ---------- تحقق الجلسة ----------
+function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/profile';
+    return false;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+    return true;
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/profile';
+    return false;
+  }
+}
+const hasSession = checkAuth();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function fetchWithRetry(url, options, attempts){
+  attempts = attempts || 5;
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await fetch(url, options);
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1){
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function apiGet(path, token){
+  const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+(token || SUPABASE_ANON_KEY)}
+  }, 3);
+  if(!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+async function loadGovernorates(selectedGovId){
+  const govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar');
+  const sel = document.getElementById('governorate');
+  sel.innerHTML = '<option value="">اختياري</option>' +
+    govs.map(g => `<option value="${g.id}">${escapeHtml(g.name_ar)}</option>`).join('');
+  if(selectedGovId) sel.value = String(selectedGovId);
+}
+
+async function loadCities(govId, selectedCityId){
+  const citySel = document.getElementById('city');
+  if(!govId){
+    citySel.innerHTML = '<option value="">اختر المحافظة أولاً</option>';
+    return;
+  }
+  citySel.innerHTML = '<option value="">جاري التحميل...</option>';
+  const cities = await apiGet(`cities?governorate_id=eq.${govId}&is_active=eq.true&order=name_ar&select=id,name_ar`);
+  citySel.innerHTML = '<option value="">اختياري</option>' +
+    cities.map(c => `<option value="${c.id}">${escapeHtml(c.name_ar)}</option>`).join('');
+  if(selectedCityId) citySel.value = String(selectedCityId);
+}
+
+document.getElementById('governorate').addEventListener('change', function(){
+  loadCities(this.value, null);
+});
+
+function renderAvatarPreview(url, name){
+  const el = document.getElementById('avatarPreview');
+  if(url){
+    el.innerHTML = `<img src="${escapeHtml(url)}">`;
+  }else{
+    el.textContent = (name && name[0]) || 'م';
+  }
+}
+
+// ---------- تحميل بيانات الملف الشخصي ----------
+async function loadProfile(){
+  const loadingCard = document.getElementById('loadingCard');
+  try{
+    const fields = 'id,full_name,username,avatar_url,bio,governorate_id,city_id,rating,ratings_count,is_verified,created_at';
+    const res = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/profiles?id=eq.${session.user.id}&select=${encodeURIComponent(fields)}`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
+    );
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(`(${res.status}) ${errBody.message || 'تعذر تحميل الملف الشخصي'}`);
+    }
+    const rows = await res.json();
+    const profile = Array.isArray(rows) ? rows[0] : null;
+    if(!profile) throw new Error('لم يتم العثور على ملفك الشخصي');
+
+    document.getElementById('fullName').value = profile.full_name || '';
+    document.getElementById('username').value = profile.username || '';
+    document.getElementById('bio').value = profile.bio || '';
+    document.getElementById('verifiedBadge').classList.toggle('hidden', !profile.is_verified);
+    document.getElementById('statRating').textContent = profile.rating != null ? Number(profile.rating).toFixed(1) : '0.0';
+    document.getElementById('statCount').textContent = profile.ratings_count || 0;
+    document.getElementById('statJoined').textContent = profile.created_at
+      ? new Date(profile.created_at).toLocaleDateString('ar-EG', {year:'numeric', month:'short'})
+      : '—';
+    renderAvatarPreview(profile.avatar_url, profile.full_name);
+
+    await loadGovernorates(profile.governorate_id);
+    if(profile.governorate_id) await loadCities(profile.governorate_id, profile.city_id);
+
+    loadingCard.classList.add('hidden');
+    document.getElementById('formCard').classList.remove('hidden');
+  }catch(e){
+    console.error('فشل تحميل الملف الشخصي:', e);
+    loadingCard.innerHTML = '<h1>تعذر تحميل الملف الشخصي</h1><p class="sub">السبب الفني: ' + escapeHtml(e.message || String(e)) + '</p><button class="btn" type="button" onclick="loadProfile()" style="margin-top:14px">إعادة المحاولة</button>';
+  }
+}
+if(hasSession) loadProfile();
+
+// ---------- الصورة الشخصية ----------
+document.getElementById('avatarInput').addEventListener('change', function(e){
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  const hint = document.getElementById('avatarHint');
+  if(!file) return;
+  if(!ALLOWED_TYPES.includes(file.type)){
+    hint.textContent = 'صيغة غير مدعومة (JPG/PNG/WEBP فقط)';
+    hint.style.color = '#c0392b';
+    return;
+  }
+  if(file.size > MAX_AVATAR_MB * 1024 * 1024){
+    hint.textContent = `الحجم أكبر من ${MAX_AVATAR_MB} ميغابايت`;
+    hint.style.color = '#c0392b';
+    return;
+  }
+  pendingAvatarFile = file;
+  hint.textContent = 'سيتم رفع الصورة عند الحفظ';
+  hint.style.color = '';
+  renderAvatarPreview(URL.createObjectURL(file), null);
+});
+
+// ---------- الحفظ ----------
+async function saveProfile(){
+  if(isSaving) return;
+  const msg = document.getElementById('msg');
+  const btn = document.getElementById('saveBtn');
+  msg.textContent = ''; msg.className = 'msg';
+
+  const fullName = document.getElementById('fullName').value.trim();
+  const username = document.getElementById('username').value.trim();
+  const bio = document.getElementById('bio').value.trim();
+  const governorateId = document.getElementById('governorate').value;
+  const cityId = document.getElementById('city').value;
+
+  if(!fullName){
+    msg.textContent = 'الرجاء إدخال الاسم الكامل';
+    msg.className = 'msg error';
+    return;
+  }
+  if(username && !/^[a-zA-Z0-9_]{3,}$/.test(username)){
+    msg.textContent = 'اسم المستخدم يجب أن يكون 3 أحرف على الأقل، إنجليزي وأرقام و_ فقط';
+    msg.className = 'msg error';
+    return;
+  }
+
+  isSaving = true;
+  btn.disabled = true;
+  btn.textContent = 'جاري الحفظ...';
+
+  const uid = session.user.id;
+  const token = session.access_token;
+
+  try{
+    let avatarUrl = undefined;
+
+    // رفع الصورة الجديدة أولاً (لو المستخدم اختار صورة) — نفس مسار
+    // bucket "avatars" المستخدم بالتطبيق بالضبط: {uid}/avatar_{ts}.{ext}
+    if(pendingAvatarFile){
+      const ext = (pendingAvatarFile.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${uid}/avatar_${Date.now()}.${ext}`;
+      const upRes = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/avatars/${path}`, {
+        method: 'POST',
+        headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'content-type': pendingAvatarFile.type},
+        body: pendingAvatarFile
+      }, 3);
+      if(!upRes.ok){
+        const upErr = await upRes.json().catch(()=>({}));
+        throw new Error(upErr.message || 'تعذر رفع الصورة الشخصية');
+      }
+      avatarUrl = `${SUPABASE_URL}/storage/v1/object/public/avatars/${path}`;
+    }
+
+    // ⚠️ نرسل فقط الحقول المسموحة صراحة — لا نرسل role/is_verified/
+    // is_merchant/rating/ratings_count أبداً، حتى لو الحماية موجودة
+    // أصلاً بقاعدة البيانات (Trigger)، كطبقة حماية إضافية بالواجهة.
+    const body = {
+      full_name: fullName,
+      bio: bio || null,
+      governorate_id: governorateId ? Number(governorateId) : null,
+      city_id: cityId ? Number(cityId) : null,
+    };
+    if(username) body.username = username;
+    if(avatarUrl) body.avatar_url = avatarUrl;
+
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/profiles?id=eq.${uid}`, {
+      method: 'PATCH',
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + token,
+        'content-type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify(body)
+    }, 3);
+    const data = await res.json();
+    if(!res.ok){
+      // نعرض رسالة القاعدة كما هي (مثل تبريد تغيير username أو أي رفض حماية)
+      const errText = (data && (data.message || data.error_description || data.msg)) || 'تعذر حفظ التعديلات';
+      throw new Error(errText);
+    }
+
+    pendingAvatarFile = null;
+    msg.textContent = 'تم حفظ التعديلات بنجاح';
+    msg.className = 'msg ok';
+  }catch(e){
+    msg.textContent = e.message || 'حدث خطأ أثناء الحفظ، حاول مرة أخرى';
+    msg.className = 'msg error';
+  }finally{
+    isSaving = false;
+    btn.disabled = false;
+    btn.textContent = 'حفظ التعديلات';
+  }
+}
+</script>
+
+</body>
+</html>
