@@ -67,9 +67,17 @@
     border:1.5px solid var(--border);background:#fff;cursor:pointer
   }
   .modal-actions .confirm{background:#c0392b;color:#fff;border-color:#c0392b}
+  .modal-actions .confirm.action{background:var(--green);border-color:var(--green)}
   .modal-actions button:disabled{opacity:.6;cursor:default}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;
     padding:11px 20px;border-radius:10px;font-size:13px;z-index:60;display:none;max-width:90%;text-align:center}
+
+  .ad-status-actions{padding:0 10px 6px}
+  .ad-status-actions button{
+    width:100%;border:1.5px solid var(--green);color:var(--green);background:#fff;border-radius:8px;
+    padding:7px 4px;font-family:inherit;font-size:12px;font-weight:700;cursor:pointer
+  }
+  .ad-status-actions button.renew{border-color:#2f6fb0;color:#2f6fb0}
 </style>
 </head>
 <body>
@@ -103,7 +111,7 @@
 
 <div class="modal-overlay" id="confirmModal">
   <div class="modal-box">
-    <h3>حذف الإعلان؟</h3>
+    <h3 id="confirmTitle">حذف الإعلان؟</h3>
     <p id="confirmText">هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.</p>
     <div class="modal-actions">
       <button id="cancelDeleteBtn" type="button">إلغاء</button>
@@ -187,6 +195,21 @@ async function fetchWithRetry(url, options, attempts){
   throw lastErr;
 }
 
+function statusActionHtml(ad){
+  const id = escapeHtml(ad.id);
+  const title = escapeHtml(ad.title).replace(/'/g,"\\'");
+  if(ad.status === 'active'){
+    return `<div class="ad-status-actions"><button type="button" onclick="openActionModal('hide','${id}','${title}')">إخفاء</button></div>`;
+  }
+  if(ad.status === 'paused'){
+    return `<div class="ad-status-actions"><button type="button" onclick="openActionModal('show','${id}','${title}')">إظهار</button></div>`;
+  }
+  if(ad.status === 'expired'){
+    return `<div class="ad-status-actions"><button type="button" class="renew" onclick="openActionModal('renew','${id}','${title}')">تجديد</button></div>`;
+  }
+  return '';
+}
+
 function adCardHtml(ad){
   const img = (ad.ad_images && ad.ad_images.length)
     ? ad.ad_images.sort((a,b)=>(a.order_index??0)-(b.order_index??0))[0].image_url
@@ -204,9 +227,10 @@ function adCardHtml(ad){
         <p class="ad-time">${timeAgo(ad.created_at)}</p>
       </div>
     </a>
+    ${statusActionHtml(ad)}
     <div class="ad-actions">
       <button type="button" class="btn-edit" onclick="location.href='/edit-ad?id=${escapeHtml(ad.id)}'">تعديل</button>
-      <button type="button" class="btn-delete" onclick="openDeleteModal('${escapeHtml(ad.id)}','${escapeHtml(ad.title).replace(/'/g,"\\'")}')">حذف</button>
+      <button type="button" class="btn-delete" onclick="openActionModal('delete','${escapeHtml(ad.id)}','${escapeHtml(ad.title).replace(/'/g,"\\'")}')">حذف</button>
     </div>
   </div>`;
 }
@@ -225,23 +249,55 @@ async function loadMyAds(){
       grid.innerHTML = '<div class="empty-note">ما عندك إعلانات منشورة بعد.<br><a href="/post-ad">أضف إعلانك الأول الآن</a></div>';
       return;
     }
-    grid.innerHTML = data.map(adCardHtml).join('');
+    grid.innerHTML = data.filter(ad => ad.status !== 'deleted').map(adCardHtml).join('');
   }catch(e){
     grid.innerHTML = '<div class="empty-note">تعذر تحميل إعلاناتك، حاول تحديث الصفحة</div>';
   }
 }
 if(hasSession) loadMyAds();
 
-// ---------- الحذف ----------
-function openDeleteModal(adId, title){
-  pendingDeleteId = adId;
-  document.getElementById('confirmText').textContent =
-    `هل أنت متأكد من حذف "${title}"؟ سيتم حذف الإعلان وكل صوره نهائياً ولا يمكن التراجع.`;
+// ---------- إجراءات الإعلان (حذف / إخفاء / إظهار / تجديد) ----------
+let pendingAction = null; // {type, adId, title}
+
+const ACTION_CONFIG = {
+  delete: {
+    title: 'حذف الإعلان؟',
+    text: (t) => `هل أنت متأكد من حذف "${t}"؟ سيتم حذف الإعلان وكل صوره نهائياً ولا يمكن التراجع.`,
+    btnText: 'حذف نهائياً', btnClass: 'confirm', busyText: 'جاري الحذف...'
+  },
+  hide: {
+    title: 'إخفاء الإعلان؟',
+    text: (t) => `هل تريد إخفاء "${t}"؟ لن يظهر للمشترين حتى تُظهره مرة أخرى.`,
+    btnText: 'إخفاء', btnClass: 'confirm action', busyText: 'جاري الإخفاء...'
+  },
+  show: {
+    title: 'إظهار الإعلان؟',
+    text: (t) => `هل تريد إظهار "${t}" مجدداً للمشترين؟`,
+    btnText: 'إظهار', btnClass: 'confirm action', busyText: 'جاري الإظهار...'
+  },
+  renew: {
+    title: 'تجديد الإعلان؟',
+    text: (t) => `هل تريد تجديد "${t}"؟ سيُمدَّد ظهوره من الآن حسب سياسة الموقع.`,
+    btnText: 'تجديد', btnClass: 'confirm action', busyText: 'جاري التجديد...'
+  },
+};
+
+function openActionModal(type, adId, title){
+  pendingAction = {type, adId, title};
+  const cfg = ACTION_CONFIG[type];
+  document.getElementById('confirmTitle').textContent = cfg.title;
+  document.getElementById('confirmText').textContent = cfg.text(title);
+  const btn = document.getElementById('confirmDeleteBtn');
+  btn.textContent = cfg.btnText;
+  btn.className = cfg.btnClass;
   document.getElementById('confirmModal').classList.add('show');
 }
+// إبقاء الاسم القديم كاسم بديل لتوافق أي استدعاء سابق (غير مستخدم حالياً)
+function openDeleteModal(adId, title){ openActionModal('delete', adId, title); }
+
 document.getElementById('cancelDeleteBtn').addEventListener('click', function(){
   if(isDeleting) return;
-  pendingDeleteId = null;
+  pendingAction = null;
   document.getElementById('confirmModal').classList.remove('show');
 });
 
@@ -284,36 +340,91 @@ async function deleteAdCompletely(adId, token){
   return {adOk: delRes.ok, storageOk};
 }
 
+// إخفاء/إظهار: تحديث status مباشرة — نفس RLS الموجودة (ads_update) تتحقق
+// من الملكية تلقائياً، صفر منطق جديد أو Trigger مضاف.
+async function setAdStatus(adId, token, newStatus){
+  const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}`, {
+    method: 'PATCH',
+    headers:{
+      apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token,
+      'content-type': 'application/json', Prefer: 'return=representation'
+    },
+    body: JSON.stringify({status: newStatus})
+  }, 3);
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok){
+    const errText = (Array.isArray(data) ? null : (data.message || data.error_description)) || 'تعذر تنفيذ العملية';
+    throw new Error(errText);
+  }
+  return true;
+}
+
+// تجديد: استدعاء renew_ad(p_ad_id) الموجودة فعلياً بقاعدة البيانات —
+// صفر منطق تجديد جديد، الدالة نفسها تتحقق من الملكية والحالة وتمدد
+// expires_at حسب سياستها الخاصة.
+async function renewAdViaRpc(adId, token){
+  const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/rpc/renew_ad`, {
+    method: 'POST',
+    headers:{
+      apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token,
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({p_ad_id: adId})
+  }, 3);
+  if(!res.ok){
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.message || 'تعذر تجديد الإعلان');
+  }
+  return true;
+}
+
 document.getElementById('confirmDeleteBtn').addEventListener('click', async function(){
-  if(isDeleting || !pendingDeleteId) return;
+  if(isDeleting || !pendingAction) return;
+  const {type, adId, title} = pendingAction;
+  const cfg = ACTION_CONFIG[type];
   isDeleting = true;
   const btn = this;
   const cancelBtn = document.getElementById('cancelDeleteBtn');
   btn.disabled = true; cancelBtn.disabled = true;
-  btn.textContent = 'جاري الحذف...';
+  btn.textContent = cfg.busyText;
 
-  const adId = pendingDeleteId;
   try{
-    const result = await deleteAdCompletely(adId, session.access_token);
-    document.getElementById('confirmModal').classList.remove('show');
-
-    if(!result.adOk){
-      showToast('تعذر حذف الإعلان بسبب مشكلة اتصال، حاول مرة أخرى');
-    } else if(!result.storageOk){
-      showToast('تم حذف الإعلان، لكن تعذّر حذف بعض الصور من التخزين');
+    if(type === 'delete'){
+      const result = await deleteAdCompletely(adId, session.access_token);
+      document.getElementById('confirmModal').classList.remove('show');
+      if(!result.adOk){
+        showToast('تعذر حذف الإعلان بسبب مشكلة اتصال، حاول مرة أخرى');
+      } else if(!result.storageOk){
+        showToast('تم حذف الإعلان، لكن تعذّر حذف بعض الصور من التخزين');
+        loadMyAds();
+      } else {
+        showToast('تم حذف الإعلان بنجاح');
+        loadMyAds();
+      }
+    } else if(type === 'hide'){
+      await setAdStatus(adId, session.access_token, 'paused');
+      document.getElementById('confirmModal').classList.remove('show');
+      showToast('تم إخفاء الإعلان');
       loadMyAds();
-    } else {
-      showToast('تم حذف الإعلان بنجاح');
+    } else if(type === 'show'){
+      await setAdStatus(adId, session.access_token, 'active');
+      document.getElementById('confirmModal').classList.remove('show');
+      showToast('تم إظهار الإعلان');
       loadMyAds();
+    } else if(type === 'renew'){
+      await renewAdViaRpc(adId, session.access_token);
+      document.getElementById('confirmModal').classList.remove('show');
+      showToast('تم تجديد الإعلان بنجاح');
+      loadMyAds(); // إعادة تحميل بيانات الإعلان من القاعدة بعد التجديد
     }
   }catch(e){
     document.getElementById('confirmModal').classList.remove('show');
-    showToast('حدث خطأ أثناء الحذف، حاول مرة أخرى');
+    showToast(e.message || 'حدث خطأ أثناء تنفيذ العملية، حاول مرة أخرى');
   }finally{
     isDeleting = false;
-    pendingDeleteId = null;
+    pendingAction = null;
     btn.disabled = false; cancelBtn.disabled = false;
-    btn.textContent = 'حذف نهائياً';
+    btn.textContent = cfg.btnText;
   }
 });
 </script>
