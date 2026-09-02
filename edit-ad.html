@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تعديل الإعلان - لقيتها</title>
+<meta name="description" content="عدّل بيانات إعلانك على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--green-dark:#0b5443;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .wrap{max-width:640px;margin:0 auto;padding:22px 16px 60px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px 20px}
+  h1{font-size:20px;margin:0 0 6px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+
+  label{font-size:13px;font-weight:600;display:block;margin:16px 0 6px}
+  input[type=text],input[type=number],select,textarea{
+    width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;
+    font-family:inherit;font-size:14px;background:#fff;color:var(--text)
+  }
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green)}
+  textarea{resize:vertical;min-height:90px;line-height:1.6}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:480px){.row2{grid-template-columns:1fr}}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:4px}
+
+  .check-row{display:flex;align-items:center;gap:8px;margin-top:14px}
+  .check-row input{width:16px;height:16px;accent-color:var(--green)}
+  .check-row label{margin:0;font-weight:500;font-size:13.5px}
+
+  .img-drop{
+    margin-top:8px;border:1.5px dashed var(--border);border-radius:12px;padding:18px;
+    text-align:center;cursor:pointer;background:#fafaf9
+  }
+  .img-drop:hover{border-color:var(--green)}
+  .img-drop .ic{font-size:24px;margin-bottom:6px}
+  .img-drop .t{font-size:13px;font-weight:600;color:var(--green)}
+  .img-drop .t2{font-size:11.5px;color:var(--muted);margin-top:2px}
+  #fileInput{display:none}
+
+  .img-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  @media(max-width:480px){.img-grid{grid-template-columns:repeat(3,1fr)}}
+  .img-thumb{position:relative;aspect-ratio:1/1;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:#eee}
+  .img-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .img-thumb .rm{
+    position:absolute;top:4px;left:4px;background:rgba(0,0,0,.6);color:#fff;border:none;
+    width:22px;height:22px;border-radius:50%;font-size:13px;cursor:pointer;line-height:1
+  }
+  .img-thumb .idx{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;
+    font-size:10px;padding:1px 6px;border-radius:5px;font-weight:700}
+  .img-thumb.existing .idx{background:rgba(15,110,86,.85)}
+
+  .btn{width:100%;background:var(--green);color:#fff;border:none;padding:14px;border-radius:10px;
+    font-weight:700;font-size:15px;margin-top:22px;cursor:pointer}
+  .btn:disabled{opacity:.6;cursor:default}
+  .btn-danger{background:#fff;color:#c0392b;border:1.5px solid #c0392b;margin-top:12px}
+  .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px;line-height:1.6}
+  .msg.error{color:#c0392b}
+  .msg.ok{color:var(--green)}
+  .progress{font-size:12.5px;color:var(--muted);text-align:center;margin-top:8px;min-height:16px}
+
+  footer{margin-top:30px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+  footer a{color:var(--green);margin:0 6px}
+  .hidden{display:none}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:16px
+  }
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:16px;padding:22px 20px;max-width:340px;width:100%;text-align:center}
+  .modal-box h3{margin:0 0 8px;font-size:16px}
+  .modal-box p{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.6}
+  .modal-actions{display:flex;gap:10px}
+  .modal-actions button{
+    flex:1;padding:11px;border-radius:10px;font-family:inherit;font-weight:700;font-size:13.5px;
+    border:1.5px solid var(--border);background:#fff;cursor:pointer
+  }
+  .modal-actions .confirm{background:#c0392b;color:#fff;border-color:#c0392b}
+  .modal-actions button:disabled{opacity:.6;cursor:default}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/my-ads">إعلاناتي</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="card" id="loadingCard">
+    <h1>جاري التحميل...</h1>
+    <p class="sub">لحظات ونعرض بيانات إعلانك</p>
+  </div>
+
+  <div class="card hidden" id="formCard">
+    <h1>تعديل الإعلان</h1>
+    <p class="sub">حدّث بيانات إعلانك أو صوره</p>
+
+    <form id="adForm" onsubmit="return false">
+
+      <label>القسم الرئيسي</label>
+      <select id="mainCategory"><option value="">اختر القسم</option></select>
+
+      <div id="subCategoryWrap" class="hidden">
+        <label>القسم الفرعي</label>
+        <select id="subCategory"><option value="">اختر القسم الفرعي</option></select>
+      </div>
+
+      <label>عنوان الإعلان</label>
+      <input id="title" type="text" placeholder="مثال: آيفون 13 برو بحالة ممتازة" maxlength="150">
+
+      <label>الوصف</label>
+      <textarea id="description" placeholder="اكتب تفاصيل عن السلعة، الحالة، سبب البيع، إلخ (اختياري)"></textarea>
+
+      <div class="row2">
+        <div>
+          <label>السعر (ريال يمني)</label>
+          <input id="price" type="number" min="0" placeholder="اختياري">
+        </div>
+        <div>
+          <label>الحالة</label>
+          <select id="condition">
+            <option value="">غير محدد</option>
+            <option value="new">جديد</option>
+            <option value="used">مستعمل</option>
+            <option value="refurbished">مجدد</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>المحافظة</label>
+          <select id="governorate"><option value="">اختياري</option></select>
+        </div>
+        <div>
+          <label>المدينة</label>
+          <select id="city"><option value="">اختر المحافظة أولاً</option></select>
+        </div>
+      </div>
+
+      <div class="check-row">
+        <input type="checkbox" id="allowCalls">
+        <label for="allowCalls">السماح بالاتصال المباشر</label>
+      </div>
+      <div class="check-row">
+        <input type="checkbox" id="allowWhatsapp">
+        <label for="allowWhatsapp">السماح بالتواصل عبر واتساب</label>
+      </div>
+
+      <label>الصور (حتى 10 صور)</label>
+      <div class="img-drop" id="dropZone" onclick="document.getElementById('fileInput').click()">
+        <div class="ic">📷</div>
+        <div class="t">اضغط لإضافة صور</div>
+        <div class="t2">JPG, PNG أو WEBP — حتى 8 ميغابايت لكل صورة</div>
+      </div>
+      <input id="fileInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+      <div class="img-grid" id="imgGrid"></div>
+      <div class="hint" id="imgCount">0 من 10 صور</div>
+
+      <button class="btn" id="submitBtn" onclick="submitEdit()">حفظ التعديلات</button>
+      <div class="progress" id="progress"></div>
+      <div class="msg" id="msg"></div>
+
+      <button type="button" class="btn btn-danger" id="deleteBtn" onclick="openDeleteModal()">حذف هذا الإعلان</button>
+    </form>
+  </div>
+</div>
+
+<footer>
+  <div>
+    <a href="/privacy">الخصوصية</a> ·
+    <a href="/terms">الشروط</a> ·
+    <a href="/delete-account">حذف الحساب</a>
+  </div>
+  <div style="margin-top:10px">© 2026 لقيتها. جميع الحقوق محفوظة.</div>
+</footer>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3>حذف الإعلان؟</h3>
+    <p>هل أنت متأكد من حذف هذا الإعلان؟ سيتم حذف الإعلان وكل صوره نهائياً ولا يمكن التراجع.</p>
+    <div class="modal-actions">
+      <button id="cancelDeleteBtn" type="button">إلغاء</button>
+      <button class="confirm" id="confirmDeleteBtn" type="button">حذف نهائياً</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+const MAX_IMAGES = 10;
+const MAX_IMAGE_MB = 8;
+const ALLOWED_TYPES = ['image/jpeg','image/png','image/webp','image/gif'];
+const STORAGE_PUBLIC_PREFIX = `${SUPABASE_URL}/storage/v1/object/public/ad-images/`;
+
+const MAIN_CATEGORIES = [
+  {id:1, name:'سيارات'},
+  {id:2, name:'عقارات'},
+  {id:3, name:'إلكترونيات'},
+  {id:4, name:'مواشي وحيوانات'},
+  {id:5, name:'أثاث ومفروشات'},
+  {id:6, name:'ملابس وأزياء'},
+  {id:7, name:'خدمات'},
+  {id:28, name:'أخرى'},
+];
+
+let session = null;
+let adId = null;
+let existingImages = []; // {id, image_url, order_index, removed:false}
+let newFiles = []; // {file, previewUrl}
+let isSubmitting = false;
+let isDeleting = false;
+
+// ---------- تحقق الجلسة ----------
+(function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/edit-ad';
+    return;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/edit-ad';
+  }
+})();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function fetchWithRetry(url, options, attempts){
+  attempts = attempts || 3;
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await fetch(url, options);
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1){
+        await new Promise(r => setTimeout(r, 700 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function apiGet(path, token){
+  const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+(token || SUPABASE_ANON_KEY)}
+  }, 3);
+  if(!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
+function renderMainCategories(){
+  const sel = document.getElementById('mainCategory');
+  sel.innerHTML = '<option value="">اختر القسم</option>' +
+    MAIN_CATEGORIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+}
+
+async function loadSubcategories(mainId, selectedSubId){
+  const subWrap = document.getElementById('subCategoryWrap');
+  const subSel = document.getElementById('subCategory');
+  subSel.innerHTML = '<option value="">اختر القسم الفرعي</option>';
+  subWrap.classList.add('hidden');
+  if(!mainId) return;
+  const subs = await apiGet(`categories?parent_id=eq.${mainId}&is_active=eq.true&order=order_index&select=id,name_ar`);
+  if(subs.length){
+    subSel.innerHTML += subs.map(c => `<option value="${c.id}">${escapeHtml(c.name_ar)}</option>`).join('');
+    subWrap.classList.remove('hidden');
+    if(selectedSubId) subSel.value = String(selectedSubId);
+  }
+}
+
+document.getElementById('mainCategory').addEventListener('change', function(){
+  loadSubcategories(this.value, null);
+});
+
+async function loadGovernorates(selectedGovId){
+  const govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar');
+  const sel = document.getElementById('governorate');
+  sel.innerHTML = '<option value="">اختياري</option>' +
+    govs.map(g => `<option value="${g.id}">${escapeHtml(g.name_ar)}</option>`).join('');
+  if(selectedGovId) sel.value = String(selectedGovId);
+}
+
+async function loadCities(govId, selectedCityId){
+  const citySel = document.getElementById('city');
+  if(!govId){
+    citySel.innerHTML = '<option value="">اختر المحافظة أولاً</option>';
+    return;
+  }
+  citySel.innerHTML = '<option value="">جاري التحميل...</option>';
+  const cities = await apiGet(`cities?governorate_id=eq.${govId}&is_active=eq.true&order=name_ar&select=id,name_ar`);
+  citySel.innerHTML = '<option value="">اختياري</option>' +
+    cities.map(c => `<option value="${c.id}">${escapeHtml(c.name_ar)}</option>`).join('');
+  if(selectedCityId) citySel.value = String(selectedCityId);
+}
+
+document.getElementById('governorate').addEventListener('change', function(){
+  loadCities(this.value, null);
+});
+
+// ---------- تحميل بيانات الإعلان الحالية ----------
+async function loadAd(){
+  const params = new URLSearchParams(window.location.search);
+  adId = params.get('id');
+  const loadingCard = document.getElementById('loadingCard');
+
+  if(!adId){
+    loadingCard.innerHTML = '<h1>إعلان غير محدد</h1><p class="sub">لم يتم تحديد إعلان للتعديل.</p>';
+    setTimeout(()=>{ window.location.href = '/my-ads'; }, 1800);
+    return;
+  }
+
+  try{
+    const fields = 'id,user_id,category_id,title,description,price,condition,governorate_id,city_id,allow_calls,allow_whatsapp,categories(parent_id),ad_images(id,image_url,order_index)';
+    const res = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}&select=${encodeURIComponent(fields)}`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3
+    );
+    if(!res.ok) throw new Error('تعذر تحميل بيانات الإعلان');
+    const rows = await res.json();
+    const ad = Array.isArray(rows) ? rows[0] : null;
+
+    // تحقق ملكية صريح بالواجهة (RLS أصلاً يمنع الوصول الفعلي، هذا فقط
+    // لعرض رسالة واضحة بدل نموذج فاضٍ لو حاول أحد فتح إعلان لا يخصه)
+    if(!ad || ad.user_id !== session.user.id){
+      loadingCard.innerHTML = '<h1>هذا الإعلان لا يخصك</h1><p class="sub">لا تملك صلاحية تعديل هذا الإعلان.</p>';
+      setTimeout(()=>{ window.location.href = '/my-ads'; }, 1800);
+      return;
+    }
+
+    // تعبئة الحقول
+    document.getElementById('title').value = ad.title || '';
+    document.getElementById('description').value = ad.description || '';
+    document.getElementById('price').value = (ad.price != null) ? ad.price : '';
+    document.getElementById('condition').value = ad.condition || '';
+    document.getElementById('allowCalls').checked = ad.allow_calls !== false;
+    document.getElementById('allowWhatsapp').checked = ad.allow_whatsapp !== false;
+
+    renderMainCategories();
+    const isSubCategory = ad.categories && ad.categories.parent_id != null;
+    if(isSubCategory){
+      document.getElementById('mainCategory').value = String(ad.categories.parent_id);
+      await loadSubcategories(ad.categories.parent_id, ad.category_id);
+    }else{
+      document.getElementById('mainCategory').value = String(ad.category_id);
+    }
+
+    await loadGovernorates(ad.governorate_id);
+    if(ad.governorate_id) await loadCities(ad.governorate_id, ad.city_id);
+
+    existingImages = (ad.ad_images || [])
+      .sort((a,b)=>(a.order_index??0)-(b.order_index??0))
+      .map(im => ({id: im.id, image_url: im.image_url, order_index: im.order_index, removed:false}));
+    renderImageGrid();
+
+    loadingCard.classList.add('hidden');
+    document.getElementById('formCard').classList.remove('hidden');
+  }catch(e){
+    loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">حاول تحديث الصفحة، أو ارجع لإعلاناتي.</p>';
+  }
+}
+loadAd();
+
+// ---------- الصور ----------
+document.getElementById('fileInput').addEventListener('change', function(e){
+  handleNewFiles(Array.from(e.target.files || []));
+  e.target.value = '';
+});
+
+function remainingCount(){
+  return existingImages.filter(im => !im.removed).length + newFiles.length;
+}
+
+function handleNewFiles(files){
+  const msg = document.getElementById('msg');
+  msg.textContent = ''; msg.className = 'msg';
+
+  for(const file of files){
+    if(remainingCount() >= MAX_IMAGES){
+      msg.textContent = `الحد الأقصى ${MAX_IMAGES} صور — تم تجاهل باقي الصور المختارة`;
+      msg.className = 'msg error';
+      break;
+    }
+    if(!ALLOWED_TYPES.includes(file.type)){
+      msg.textContent = `الصورة "${file.name}" بصيغة غير مدعومة (JPG/PNG/WEBP فقط)`;
+      msg.className = 'msg error';
+      continue;
+    }
+    if(file.size > MAX_IMAGE_MB * 1024 * 1024){
+      msg.textContent = `الصورة "${file.name}" أكبر من ${MAX_IMAGE_MB} ميغابايت`;
+      msg.className = 'msg error';
+      continue;
+    }
+    newFiles.push({file, previewUrl: URL.createObjectURL(file)});
+  }
+  renderImageGrid();
+}
+
+function removeExistingImage(idx){
+  existingImages[idx].removed = true;
+  renderImageGrid();
+}
+function removeNewImage(idx){
+  URL.revokeObjectURL(newFiles[idx].previewUrl);
+  newFiles.splice(idx, 1);
+  renderImageGrid();
+}
+
+function renderImageGrid(){
+  const grid = document.getElementById('imgGrid');
+  let html = '';
+  let n = 1;
+  existingImages.forEach((im, idx) => {
+    if(im.removed) return;
+    html += `<div class="img-thumb existing">
+      <img src="${escapeHtml(im.image_url)}">
+      <span class="idx">${n++}</span>
+      <button type="button" class="rm" onclick="removeExistingImage(${idx})">×</button>
+    </div>`;
+  });
+  newFiles.forEach((f, idx) => {
+    html += `<div class="img-thumb">
+      <img src="${f.previewUrl}">
+      <span class="idx">${n++}</span>
+      <button type="button" class="rm" onclick="removeNewImage(${idx})">×</button>
+    </div>`;
+  });
+  grid.innerHTML = html;
+  document.getElementById('imgCount').textContent = `${remainingCount()} من ${MAX_IMAGES} صور`;
+  const dz = document.getElementById('dropZone');
+  dz.style.display = remainingCount() >= MAX_IMAGES ? 'none' : 'block';
+}
+
+// ---------- حفظ التعديلات ----------
+async function submitEdit(){
+  if(isSubmitting) return;
+
+  const msg = document.getElementById('msg');
+  const progress = document.getElementById('progress');
+  const btn = document.getElementById('submitBtn');
+  msg.textContent = ''; msg.className = 'msg'; progress.textContent = '';
+
+  const mainCategory = document.getElementById('mainCategory').value;
+  const subCategory = document.getElementById('subCategory').value;
+  const title = document.getElementById('title').value.trim();
+  const description = document.getElementById('description').value.trim();
+  const priceRaw = document.getElementById('price').value;
+  const condition = document.getElementById('condition').value;
+  const governorateId = document.getElementById('governorate').value;
+  const cityId = document.getElementById('city').value;
+  const allowCalls = document.getElementById('allowCalls').checked;
+  const allowWhatsapp = document.getElementById('allowWhatsapp').checked;
+  const categoryId = subCategory || mainCategory;
+
+  if(!categoryId){
+    msg.textContent = 'الرجاء اختيار القسم';
+    msg.className = 'msg error';
+    return;
+  }
+  if(!title){
+    msg.textContent = 'الرجاء إدخال عنوان الإعلان';
+    msg.className = 'msg error';
+    return;
+  }
+  if(remainingCount() === 0){
+    msg.textContent = 'يجب أن يبقى للإعلان صورة واحدة على الأقل';
+    msg.className = 'msg error';
+    return;
+  }
+
+  isSubmitting = true;
+  btn.disabled = true;
+  btn.textContent = 'جاري الحفظ...';
+  document.getElementById('deleteBtn').disabled = true;
+  progress.textContent = 'جاري حفظ بيانات الإعلان...';
+
+  const uid = session.user.id;
+  const token = session.access_token;
+  const newlyUploadedPaths = []; // للتنظيف لو فشل جزء لاحق بنفس هذي الجلسة فقط
+
+  try{
+    // 1) تحديث بيانات الإعلان — لا نرسل status/views_count/favorites_count/
+    //    is_featured أبداً، الـTrigger protect_ad_fields يتجاهلها ويحافظ
+    //    على القيم الأصلية حتى لو أُرسلت.
+    const body = {
+      category_id: Number(categoryId),
+      title,
+      description: description || null,
+      price: priceRaw !== '' ? Number(priceRaw) : null,
+      condition: condition || null,
+      governorate_id: governorateId ? Number(governorateId) : null,
+      city_id: cityId ? Number(cityId) : null,
+      allow_calls: allowCalls,
+      allow_whatsapp: allowWhatsapp,
+    };
+
+    const updRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}`, {
+      method: 'PATCH',
+      headers:{
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: 'Bearer ' + token,
+        'content-type': 'application/json',
+        Prefer: 'return=representation'
+      },
+      body: JSON.stringify(body)
+    }, 3);
+    const updData = await updRes.json();
+    if(!updRes.ok){
+      const errText = (updData && (updData.message || updData.error_description || updData.msg)) || 'تعذر حفظ التعديلات';
+      throw new Error(errText);
+    }
+
+    // 2) رفع الصور الجديدة أولاً (قبل حذف أي صورة قديمة) — عشان لو صار
+    //    خطأ هنا يبقى الإعلان محتفظاً بكل صوره الأصلية سليمة بدون نقصان
+    const existingMaxOrder = existingImages.reduce((m, im) => im.removed ? m : Math.max(m, im.order_index ?? 0), -1);
+    for(let i = 0; i < newFiles.length; i++){
+      progress.textContent = `جاري رفع الصورة ${i+1} من ${newFiles.length}...`;
+      const {file} = newFiles[i];
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+      const path = `${uid}/${adId}/${Date.now()}_${i}.${ext}`;
+
+      const upRes = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/ad-images/${path}`, {
+        method: 'POST',
+        headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'content-type': file.type},
+        body: file
+      }, 3);
+      if(!upRes.ok){
+        const upErr = await upRes.json().catch(()=>({}));
+        throw new Error(upErr.message || `تعذر رفع الصورة ${i+1}`);
+      }
+      newlyUploadedPaths.push(path);
+
+      const imageUrl = `${SUPABASE_URL}/storage/v1/object/public/ad-images/${path}`;
+      const imgRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ad_images`, {
+        method: 'POST',
+        headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token, 'content-type': 'application/json'},
+        body: JSON.stringify({ad_id: adId, image_url: imageUrl, order_index: existingMaxOrder + 1 + i})
+      }, 3);
+      if(!imgRes.ok){
+        const imgErr = await imgRes.json().catch(()=>({}));
+        throw new Error(imgErr.message || `تعذر تسجيل الصورة ${i+1}`);
+      }
+    }
+
+    // 3) حذف الصور المُزالة (بعد نجاح رفع الجديدة بأمان)
+    const toRemove = existingImages.filter(im => im.removed);
+    for(const im of toRemove){
+      progress.textContent = 'جاري حذف الصور المُزالة...';
+      if(im.image_url && im.image_url.startsWith(STORAGE_PUBLIC_PREFIX)){
+        const path = im.image_url.slice(STORAGE_PUBLIC_PREFIX.length);
+        try{
+          await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/ad-images/${path}`, {
+            method: 'DELETE',
+            headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+          }, 3);
+        }catch(e){
+          console.error('تعذر حذف صورة مُزالة من Storage:', path, e);
+        }
+      }
+      try{
+        await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ad_images?id=eq.${im.id}`, {
+          method: 'DELETE',
+          headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+        }, 3);
+      }catch(e){
+        console.error('تعذر حذف صف صورة مُزالة:', im.id, e);
+      }
+    }
+
+    // 4) تحقق نهائي فعلي: عدد الصور بالقاعدة يطابق المتوقع
+    progress.textContent = 'جاري التحقق النهائي...';
+    const expectedCount = existingImages.filter(im => !im.removed).length + newFiles.length;
+    const verifyRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ad_images?ad_id=eq.${adId}&select=id`, {
+      headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+    }, 3);
+    if(!verifyRes.ok) throw new Error('تعذر التحقق من اكتمال الإعلان بعد الحفظ');
+    const verifyImages = await verifyRes.json();
+    if(!Array.isArray(verifyImages) || verifyImages.length !== expectedCount){
+      throw new Error('التحقق النهائي فشل: عدد الصور بعد الحفظ لا يطابق المتوقع');
+    }
+
+    progress.textContent = '';
+    msg.textContent = 'تم حفظ التعديلات بنجاح! جاري التحويل...';
+    msg.className = 'msg ok';
+    setTimeout(()=>{ window.location.href = '/ad/' + adId; }, 900);
+    return;
+
+  }catch(e){
+    // تنظيف محدود بنطاقه: نحذف فقط الصور الجديدة المرفوعة بهذي الجلسة
+    // (لو فشل شي بعد رفعها)، ولا نلمس الإعلان أو صوره الأصلية القديمة
+    // إطلاقاً — الإعلان كان موجوداً وصحيحاً قبل هذي المحاولة، فما نحذفه.
+    progress.textContent = newlyUploadedPaths.length ? 'جاري تنظيف الصور الجديدة الناقصة...' : '';
+    for(const p of newlyUploadedPaths){
+      try{
+        await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/ad-images/${p}`, {
+          method: 'DELETE',
+          headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+        }, 3);
+      }catch(_){}
+    }
+    progress.textContent = '';
+    msg.textContent = e.message || 'حدث خطأ أثناء الحفظ، حاول مرة أخرى';
+    msg.className = 'msg error';
+  } finally {
+    isSubmitting = false;
+    btn.disabled = false;
+    btn.textContent = 'حفظ التعديلات';
+    document.getElementById('deleteBtn').disabled = false;
+  }
+}
+
+// ---------- حذف الإعلان بالكامل ----------
+function openDeleteModal(){
+  document.getElementById('confirmModal').classList.add('show');
+}
+document.getElementById('cancelDeleteBtn').addEventListener('click', function(){
+  if(isDeleting) return;
+  document.getElementById('confirmModal').classList.remove('show');
+});
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function(){
+  if(isDeleting) return;
+  isDeleting = true;
+  const btn = this;
+  const cancelBtn = document.getElementById('cancelDeleteBtn');
+  btn.disabled = true; cancelBtn.disabled = true;
+  btn.textContent = 'جاري الحذف...';
+
+  const token = session.access_token;
+  const msg = document.getElementById('msg');
+
+  try{
+    const prefix = STORAGE_PUBLIC_PREFIX;
+    for(const im of existingImages){
+      if(im.image_url && im.image_url.startsWith(prefix)){
+        const path = im.image_url.slice(prefix.length);
+        try{
+          await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/ad-images/${path}`, {
+            method: 'DELETE',
+            headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+          }, 3);
+        }catch(e){
+          console.error('تعذر حذف صورة أثناء حذف الإعلان الكامل:', path, e);
+        }
+      }
+    }
+
+    const delRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}`, {
+      method: 'DELETE',
+      headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+    }, 3);
+
+    document.getElementById('confirmModal').classList.remove('show');
+
+    if(!delRes.ok){
+      msg.textContent = 'تعذر حذف الإعلان بسبب مشكلة اتصال، حاول مرة أخرى';
+      msg.className = 'msg error';
+    }else{
+      window.location.href = '/my-ads';
+      return;
+    }
+  }catch(e){
+    document.getElementById('confirmModal').classList.remove('show');
+    msg.textContent = 'حدث خطأ أثناء الحذف، حاول مرة أخرى';
+    msg.className = 'msg error';
+  }finally{
+    isDeleting = false;
+    btn.disabled = false; cancelBtn.disabled = false;
+    btn.textContent = 'حذف نهائياً';
+  }
+});
+</script>
+
+</body>
+</html>

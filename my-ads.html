@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>إعلاناتي - لقيتها</title>
+<meta name="description" content="إدارة إعلاناتك المنشورة على لقيتها — سوق اليمن المفتوح.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--green-dark:#0b5443;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+
+  .page-head{padding:22px 16px 10px}
+  .page-head h1{font-size:20px;margin:0 0 4px}
+  .page-head p{margin:0;font-size:13px;color:var(--muted)}
+
+  .section{padding:10px 16px 40px}
+  .ad-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  @media(min-width:640px){.ad-grid{grid-template-columns:repeat(4,1fr)}}
+  .ad-card{background:var(--card);border-radius:12px;overflow:hidden;border:1px solid var(--border);position:relative}
+  .ad-card .img-wrap{aspect-ratio:4/3;background:#e5e5e5;overflow:hidden;position:relative}
+  .ad-card img{width:100%;height:100%;object-fit:cover;display:block}
+  .status-badge{position:absolute;top:8px;right:8px;color:#fff;font-size:10.5px;font-weight:800;padding:3px 8px;border-radius:6px}
+  .status-active{background:var(--green)}
+  .status-draft,.status-pending,.status-paused{background:#8a8a8a}
+  .status-sold{background:#2f6fb0}
+  .status-expired,.status-rejected,.status-deleted{background:#c0392b}
+  .ad-body{padding:10px}
+  .ad-title{font-size:13.5px;font-weight:700;margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ad-price{font-size:14.5px;font-weight:800;color:var(--green)}
+  .ad-time{font-size:10.5px;color:#999;margin-top:4px}
+  .ad-actions{display:flex;gap:6px;padding:0 10px 10px}
+  .ad-actions button{
+    flex:1;border:1.5px solid var(--border);background:#fff;border-radius:8px;padding:7px 4px;
+    font-family:inherit;font-size:12px;font-weight:700;cursor:pointer
+  }
+  .btn-edit{color:var(--green);border-color:var(--green)!important}
+  .btn-delete{color:#c0392b;border-color:#c0392b!important}
+
+  .empty-note{grid-column:1/-1;text-align:center;color:var(--muted);font-size:13px;padding:40px 16px}
+  .empty-note a{color:var(--green);font-weight:700}
+
+  footer{margin-top:20px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+  footer a{color:var(--green);margin:0 6px}
+
+  /* نافذة تأكيد الحذف */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;
+    align-items:center;justify-content:center;z-index:50;padding:16px
+  }
+  .modal-overlay.show{display:flex}
+  .modal-box{background:#fff;border-radius:16px;padding:22px 20px;max-width:340px;width:100%;text-align:center}
+  .modal-box h3{margin:0 0 8px;font-size:16px}
+  .modal-box p{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.6}
+  .modal-actions{display:flex;gap:10px}
+  .modal-actions button{
+    flex:1;padding:11px;border-radius:10px;font-family:inherit;font-weight:700;font-size:13.5px;
+    border:1.5px solid var(--border);background:#fff;cursor:pointer
+  }
+  .modal-actions .confirm{background:#c0392b;color:#fff;border-color:#c0392b}
+  .modal-actions button:disabled{opacity:.6;cursor:default}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e1e1e;color:#fff;
+    padding:11px 20px;border-radius:10px;font-size:13px;z-index:60;display:none;max-width:90%;text-align:center}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="page-head">
+  <h1>إعلاناتي</h1>
+  <p>إدارة كل إعلاناتك المنشورة — تعديل أو حذف بسهولة</p>
+</div>
+
+<section class="section">
+  <div class="ad-grid" id="adsGrid">
+    <div class="empty-note">جاري التحميل...</div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <a href="/privacy">الخصوصية</a> ·
+    <a href="/terms">الشروط</a> ·
+    <a href="/delete-account">حذف الحساب</a>
+  </div>
+  <div style="margin-top:10px">© 2026 لقيتها. جميع الحقوق محفوظة.</div>
+</footer>
+
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal-box">
+    <h3>حذف الإعلان؟</h3>
+    <p id="confirmText">هل أنت متأكد من حذف هذا الإعلان؟ لا يمكن التراجع عن هذا الإجراء.</p>
+    <div class="modal-actions">
+      <button id="cancelDeleteBtn" type="button">إلغاء</button>
+      <button class="confirm" id="confirmDeleteBtn" type="button">حذف نهائياً</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+
+const STATUS_LABELS = {
+  draft:'مسودة', pending:'قيد المراجعة', active:'نشط', sold:'مباع',
+  expired:'منتهي', rejected:'مرفوض', deleted:'محذوف', paused:'متوقف'
+};
+
+let session = null;
+let isDeleting = false;
+let pendingDeleteId = null;
+
+// ---------- تحقق الجلسة ----------
+(function checkAuth(){
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw){
+    window.location.href = '/login?next=/my-ads';
+    return;
+  }
+  try{
+    session = JSON.parse(raw);
+    if(!session || !session.access_token || !session.user || !session.user.id){
+      throw new Error('invalid session');
+    }
+  }catch(e){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/my-ads';
+  }
+})();
+
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function timeAgo(iso){
+  const diff = (Date.now() - new Date(iso).getTime())/1000;
+  if(diff < 3600) return 'منذ ' + Math.max(1,Math.floor(diff/60)) + ' دقيقة';
+  if(diff < 86400) return 'منذ ' + Math.floor(diff/3600) + ' ساعة';
+  return 'منذ ' + Math.floor(diff/86400) + ' يوم';
+}
+function formatPrice(price, currency){
+  if(price == null) return 'السعر عند الاتصال';
+  const f = Number(price).toLocaleString('en-US');
+  return f + ' ' + (currency === 'YER' ? 'ريال' : currency);
+}
+function showToast(text){
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.style.display = 'block';
+  setTimeout(()=>{ t.style.display = 'none'; }, 3000);
+}
+
+// يعيد المحاولة فقط عند فشل اتصال حقيقي، مو عند رد خادم فيه خطأ —
+// نفس منطق post-ad.html بالضبط.
+async function fetchWithRetry(url, options, attempts){
+  attempts = attempts || 3;
+  let lastErr;
+  for(let i = 0; i < attempts; i++){
+    try{
+      return await fetch(url, options);
+    }catch(err){
+      lastErr = err;
+      if(i < attempts - 1){
+        await new Promise(r => setTimeout(r, 700 * (i + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+function adCardHtml(ad){
+  const img = (ad.ad_images && ad.ad_images.length)
+    ? ad.ad_images.sort((a,b)=>(a.order_index??0)-(b.order_index??0))[0].image_url
+    : '';
+  const statusLabel = STATUS_LABELS[ad.status] || ad.status;
+  return `<div class="ad-card">
+    <a href="/ad/${escapeHtml(ad.id)}">
+      <div class="img-wrap">
+        <span class="status-badge status-${escapeHtml(ad.status)}">${escapeHtml(statusLabel)}</span>
+        ${img ? `<img src="${escapeHtml(img)}" loading="lazy" alt="${escapeHtml(ad.title)}">` : ''}
+      </div>
+      <div class="ad-body">
+        <p class="ad-title">${escapeHtml(ad.title)}</p>
+        <p class="ad-price">${formatPrice(ad.price, ad.currency)}</p>
+        <p class="ad-time">${timeAgo(ad.created_at)}</p>
+      </div>
+    </a>
+    <div class="ad-actions">
+      <button type="button" class="btn-edit" onclick="location.href='/edit-ad?id=${escapeHtml(ad.id)}'">تعديل</button>
+      <button type="button" class="btn-delete" onclick="openDeleteModal('${escapeHtml(ad.id)}','${escapeHtml(ad.title).replace(/'/g,"\\'")}')">حذف</button>
+    </div>
+  </div>`;
+}
+
+async function loadMyAds(){
+  const grid = document.getElementById('adsGrid');
+  try{
+    const fields = 'id,title,price,currency,status,created_at,ad_images(image_url,order_index)';
+    const res = await fetchWithRetry(
+      `${SUPABASE_URL}/rest/v1/ads?user_id=eq.${session.user.id}&select=${encodeURIComponent(fields)}&order=created_at.desc`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3
+    );
+    if(!res.ok) throw new Error('تعذر تحميل إعلاناتك');
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length === 0){
+      grid.innerHTML = '<div class="empty-note">ما عندك إعلانات منشورة بعد.<br><a href="/post-ad">أضف إعلانك الأول الآن</a></div>';
+      return;
+    }
+    grid.innerHTML = data.map(adCardHtml).join('');
+  }catch(e){
+    grid.innerHTML = '<div class="empty-note">تعذر تحميل إعلاناتك، حاول تحديث الصفحة</div>';
+  }
+}
+loadMyAds();
+
+// ---------- الحذف ----------
+function openDeleteModal(adId, title){
+  pendingDeleteId = adId;
+  document.getElementById('confirmText').textContent =
+    `هل أنت متأكد من حذف "${title}"؟ سيتم حذف الإعلان وكل صوره نهائياً ولا يمكن التراجع.`;
+  document.getElementById('confirmModal').classList.add('show');
+}
+document.getElementById('cancelDeleteBtn').addEventListener('click', function(){
+  if(isDeleting) return;
+  pendingDeleteId = null;
+  document.getElementById('confirmModal').classList.remove('show');
+});
+
+async function deleteAdCompletely(adId, token){
+  // 1) جلب مسارات الصور الحقيقية بـStorage من روابطها المخزّنة، لحذفها فردياً
+  const imgRes = await fetchWithRetry(
+    `${SUPABASE_URL}/rest/v1/ad_images?ad_id=eq.${adId}&select=image_url`,
+    {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+token}}, 3
+  );
+  let paths = [];
+  if(imgRes.ok){
+    const images = await imgRes.json();
+    const prefix = `${SUPABASE_URL}/storage/v1/object/public/ad-images/`;
+    paths = (Array.isArray(images) ? images : [])
+      .map(im => im.image_url && im.image_url.startsWith(prefix) ? im.image_url.slice(prefix.length) : null)
+      .filter(Boolean);
+  }
+
+  // 2) حذف كل صورة من Storage فعلياً
+  let storageOk = true;
+  for(const p of paths){
+    try{
+      const res = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/ad-images/${p}`, {
+        method: 'DELETE',
+        headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+      }, 3);
+      if(!res.ok) storageOk = false;
+    }catch(e){
+      storageOk = false;
+      console.error('تعذر حذف صورة بـStorage أثناء حذف الإعلان:', p, e);
+    }
+  }
+
+  // 3) حذف صف الإعلان نفسه — يحذف أي صفوف ad_images متبقية تلقائياً (CASCADE)
+  const delRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}`, {
+    method: 'DELETE',
+    headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+  }, 3);
+
+  return {adOk: delRes.ok, storageOk};
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function(){
+  if(isDeleting || !pendingDeleteId) return;
+  isDeleting = true;
+  const btn = this;
+  const cancelBtn = document.getElementById('cancelDeleteBtn');
+  btn.disabled = true; cancelBtn.disabled = true;
+  btn.textContent = 'جاري الحذف...';
+
+  const adId = pendingDeleteId;
+  try{
+    const result = await deleteAdCompletely(adId, session.access_token);
+    document.getElementById('confirmModal').classList.remove('show');
+
+    if(!result.adOk){
+      showToast('تعذر حذف الإعلان بسبب مشكلة اتصال، حاول مرة أخرى');
+    } else if(!result.storageOk){
+      showToast('تم حذف الإعلان، لكن تعذّر حذف بعض الصور من التخزين');
+      loadMyAds();
+    } else {
+      showToast('تم حذف الإعلان بنجاح');
+      loadMyAds();
+    }
+  }catch(e){
+    document.getElementById('confirmModal').classList.remove('show');
+    showToast('حدث خطأ أثناء الحذف، حاول مرة أخرى');
+  }finally{
+    isDeleting = false;
+    pendingDeleteId = null;
+    btn.disabled = false; cancelBtn.disabled = false;
+    btn.textContent = 'حذف نهائياً';
+  }
+});
+</script>
+
+</body>
+</html>
