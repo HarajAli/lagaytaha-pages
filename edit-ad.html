@@ -227,22 +227,25 @@ let isSubmitting = false;
 let isDeleting = false;
 
 // ---------- تحقق الجلسة ----------
-(function checkAuth(){
+function checkAuth(){
   const raw = localStorage.getItem('laqaytaha_session');
   if(!raw){
     window.location.href = '/login?next=/edit-ad';
-    return;
+    return false;
   }
   try{
     session = JSON.parse(raw);
     if(!session || !session.access_token || !session.user || !session.user.id){
       throw new Error('invalid session');
     }
+    return true;
   }catch(e){
     localStorage.removeItem('laqaytaha_session');
     window.location.href = '/login?next=/edit-ad';
+    return false;
   }
-})();
+}
+const hasSession = checkAuth();
 
 function escapeHtml(s){
   if(s == null) return '';
@@ -391,7 +394,7 @@ async function loadAd(){
     loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">السبب الفني: ' + escapeHtml(e.message || String(e)) + '</p><p class="sub">تأكد من اتصال الإنترنت ثم أعد المحاولة.</p><button class="btn" type="button" onclick="loadAd()" style="margin-top:14px">إعادة المحاولة</button>';
   }
 }
-loadAd();
+if(hasSession) loadAd();
 
 // ---------- الصور ----------
 document.getElementById('fileInput').addEventListener('change', function(e){
