@@ -258,7 +258,7 @@ async function fetchWithRetry(url, options, attempts){
     }catch(err){
       lastErr = err;
       if(i < attempts - 1){
-        await new Promise(r => setTimeout(r, 700 * (i + 1)));
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
       }
     }
   }
@@ -339,7 +339,7 @@ async function loadAd(){
     const fields = 'id,user_id,category_id,title,description,price,condition,governorate_id,city_id,allow_calls,allow_whatsapp,categories(parent_id),ad_images(id,image_url,order_index)';
     const res = await fetchWithRetry(
       `${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}&select=${encodeURIComponent(fields)}`,
-      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
     );
     if(!res.ok){
       const errBody = await res.json().catch(()=>({}));
@@ -385,7 +385,7 @@ async function loadAd(){
     document.getElementById('formCard').classList.remove('hidden');
   }catch(e){
     console.error('فشل تحميل الإعلان للتعديل:', e);
-    loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">السبب الفني: ' + escapeHtml(e.message || String(e)) + '</p><p class="sub">حاول تحديث الصفحة، أو ارجع لإعلاناتي.</p>';
+    loadingCard.innerHTML = '<h1>تعذر تحميل الإعلان</h1><p class="sub">السبب الفني: ' + escapeHtml(e.message || String(e)) + '</p><p class="sub">تأكد من اتصال الإنترنت ثم أعد المحاولة.</p><button class="btn" type="button" onclick="loadAd()" style="margin-top:14px">إعادة المحاولة</button>';
   }
 }
 loadAd();
