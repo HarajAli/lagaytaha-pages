@@ -38,7 +38,7 @@ export async function onRequestGet(context) {
   const adId = params.id;
 
   const selectFields =
-    'id,title,description,price,currency,condition,status,created_at,category_id,' +
+    'id,title,description,price,currency,condition,status,created_at,category_id,user_id,' +
     'ad_images(image_url,order_index),' +
     'profiles!ads_user_id_fkey(full_name,username,is_verified),' +
     'cities(name_ar),categories(name_ar)';
@@ -161,6 +161,9 @@ export async function onRequestGet(context) {
   .btn-primary{background:#0F6E56;color:#fff}
   .btn-outline{background:#fff;color:#0F6E56;border:1.5px solid #0F6E56}
   .disclaimer{margin:12px;padding:12px;background:#fff8e6;border-radius:10px;font-size:12.5px;color:#7a5c00;line-height:1.6}
+  .btn:disabled{opacity:.6;cursor:default}
+  .owner-note{margin:12px;text-align:center;font-size:13px;color:#777;background:#fff;padding:12px;border-radius:10px}
+  .hidden{display:none}
 </style>
 </head>
 <body>
@@ -176,15 +179,91 @@ ${statusMessage ? `<div class="status-banner">${escapeHtml(statusMessage)}</div>
     ${ad.description ? `<div class="desc">${escapeHtml(ad.description)}</div>` : ''}
     <div class="seller">${escapeHtml(seller.full_name || 'مستخدم')}${seller.is_verified ? ' ✓' : ''}</div>
   </div>
-  <div class="cta">
-    <a class="btn btn-primary" href="${canonicalUrl}">فتح في تطبيق لقيتها</a>
+  <div class="cta" id="ctaArea">
+    <a class="btn btn-primary" id="messageBtn" href="/login?next=/ad/${encodeURIComponent(adId)}">مراسلة البائع</a>
     <a class="btn btn-outline" href="${PLAY_STORE_URL}">تحميل التطبيق</a>
   </div>
+  <div class="owner-note hidden" id="ownerNote">هذا إعلانك — لا يمكنك مراسلة نفسك</div>
   <div class="disclaimer">
     تنبيه: لقيتها منصة إعلانات وتواصل، وليست طرفاً في عملية البيع أو
     الدفع أو التوصيل. احرص على التحقق من السلعة والطرف الآخر قبل الدفع.
   </div>
 </div>
+
+<script>
+(function(){
+  const AD_ID = ${JSON.stringify(ad.id)};
+  const SELLER_ID = ${JSON.stringify(ad.user_id || null)};
+  const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+
+  const raw = localStorage.getItem('laqaytaha_session');
+  if(!raw) return; // الحالة الافتراضية (رابط لتسجيل الدخول) مرسومة أصلاً من السيرفر
+
+  let session;
+  try{ session = JSON.parse(raw); }catch(e){ return; }
+  if(!session || !session.access_token || !session.user || !session.user.id) return;
+
+  const btn = document.getElementById('messageBtn');
+  const ownerNote = document.getElementById('ownerNote');
+
+  // صاحب الإعلان نفسه: إخفاء زر المراسلة كلياً + رسالة واضحة بدلاً عنه
+  if(SELLER_ID && session.user.id === SELLER_ID){
+    btn.remove();
+    ownerNote.classList.remove('hidden');
+    return;
+  }
+
+  // مسجّل دخول وليس صاحب الإعلان: عند الضغط، أنشئ/افتح المحادثة ثم انتقل لها
+  btn.setAttribute('href', 'javascript:void(0)');
+  btn.addEventListener('click', async function(e){
+    e.preventDefault();
+    if(btn.dataset.busy === '1') return;
+    btn.dataset.busy = '1';
+    const originalText = btn.textContent;
+    btn.textContent = 'جاري الفتح...';
+    btn.style.pointerEvents = 'none';
+
+    try{
+      const uid = session.user.id;
+      const token = session.access_token;
+
+      // 1) البحث عن محادثة موجودة أصلاً لنفس الإعلان بين نفس الطرفين
+      const existingUrl = SUPABASE_URL + '/rest/v1/conversations?ad_id=eq.' + AD_ID +
+        '&buyer_id=eq.' + uid + '&seller_id=eq.' + SELLER_ID + '&select=id';
+      const existingRes = await fetch(existingUrl, {
+        headers: {apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token}
+      });
+      const existingRows = existingRes.ok ? await existingRes.json() : [];
+      let conversationId = existingRows[0] && existingRows[0].id;
+
+      // 2) لو ما فيه، ننشئ محادثة جديدة (نفس منطق getOrCreateConversation بالتطبيق)
+      if(!conversationId){
+        const createRes = await fetch(SUPABASE_URL + '/rest/v1/conversations', {
+          method: 'POST',
+          headers:{
+            apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + token,
+            'content-type': 'application/json', Prefer: 'return=representation'
+          },
+          body: JSON.stringify({ad_id: AD_ID, buyer_id: uid, seller_id: SELLER_ID})
+        });
+        const createData = await createRes.json();
+        if(!createRes.ok){
+          throw new Error((createData && createData.message) || 'تعذر بدء المحادثة');
+        }
+        conversationId = Array.isArray(createData) ? createData[0].id : createData.id;
+      }
+
+      window.location.href = '/chat?id=' + conversationId;
+    }catch(err){
+      btn.textContent = originalText;
+      btn.style.pointerEvents = '';
+      btn.dataset.busy = '0';
+      alert(err.message || 'تعذر بدء المحادثة، حاول مرة أخرى');
+    }
+  });
+})();
+</script>
 </body>
 </html>`;
 
