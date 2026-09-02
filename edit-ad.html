@@ -336,7 +336,7 @@ async function loadAd(){
   }
 
   try{
-    const fields = 'id,user_id,category_id,title,description,price,condition,governorate_id,city_id,allow_calls,allow_whatsapp,categories(parent_id),ad_images(id,image_url,order_index)';
+    const fields = 'id,user_id,category_id,title,description,price,condition,governorate_id,city_id,allow_calls,allow_whatsapp';
     const res = await fetchWithRetry(
       `${SUPABASE_URL}/rest/v1/ads?id=eq.${adId}&select=${encodeURIComponent(fields)}`,
       {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
@@ -365,10 +365,14 @@ async function loadAd(){
     document.getElementById('allowWhatsapp').checked = ad.allow_whatsapp !== false;
 
     renderMainCategories();
-    const isSubCategory = ad.categories && ad.categories.parent_id != null;
+    let categoryParentId = null;
+    const catRows = await apiGet(`categories?id=eq.${ad.category_id}&select=parent_id`, session.access_token);
+    if(catRows.length) categoryParentId = catRows[0].parent_id;
+
+    const isSubCategory = categoryParentId != null;
     if(isSubCategory){
-      document.getElementById('mainCategory').value = String(ad.categories.parent_id);
-      await loadSubcategories(ad.categories.parent_id, ad.category_id);
+      document.getElementById('mainCategory').value = String(categoryParentId);
+      await loadSubcategories(categoryParentId, ad.category_id);
     }else{
       document.getElementById('mainCategory').value = String(ad.category_id);
     }
@@ -376,9 +380,8 @@ async function loadAd(){
     await loadGovernorates(ad.governorate_id);
     if(ad.governorate_id) await loadCities(ad.governorate_id, ad.city_id);
 
-    existingImages = (ad.ad_images || [])
-      .sort((a,b)=>(a.order_index??0)-(b.order_index??0))
-      .map(im => ({id: im.id, image_url: im.image_url, order_index: im.order_index, removed:false}));
+    const imgRows = await apiGet(`ad_images?ad_id=eq.${adId}&select=id,image_url,order_index&order=order_index`, session.access_token);
+    existingImages = imgRows.map(im => ({id: im.id, image_url: im.image_url, order_index: im.order_index, removed:false}));
     renderImageGrid();
 
     loadingCard.classList.add('hidden');
