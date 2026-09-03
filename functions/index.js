@@ -302,6 +302,7 @@ function renderAuthArea(){
         <div class="account-dropdown" id="accountDropdown">
           <a href="/profile">👤 الملف الشخصي</a>
           <a href="/my-ads">📢 إعلاناتي</a>
+          <a href="/messages">📬 الرسائل</a>
           <a href="/settings">⚙️ الإعدادات</a>
           <button type="button" class="logout-item" onclick="doLogout()">🚪 تسجيل الخروج</button>
         </div>
