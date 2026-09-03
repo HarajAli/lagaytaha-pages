@@ -296,8 +296,8 @@ function renderAuthArea(){
     el.innerHTML = \`
       <div class="account-menu-wrap">
         <button class="user-chip" id="accountMenuBtn" type="button">
-          <div class="user-avatar">\${avatarUrl ? '<img src="'+escapeHtml(avatarUrl)+'">' : initial}</div>
-          <span>\${escapeHtml(name.split(' ')[0])}</span>
+          <div class="user-avatar" id="headerAvatar">\${avatarUrl ? '<img src="'+escapeHtml(avatarUrl)+'">' : initial}</div>
+          <span id="headerName">\${escapeHtml(name.split(' ')[0])}</span>
         </button>
         <div class="account-dropdown" id="accountDropdown">
           <a href="/profile">👤 الملف الشخصي</a>
@@ -319,6 +319,31 @@ function renderAuthArea(){
         dropdown.classList.remove('show');
       }
     });
+
+    // العرض أعلاه فوري من الجلسة المخزّنة (بدون أي تأخير). بعده مباشرة
+    // نجيب الاسم والصورة الحقيقيين من جدول profiles بطلب واحد خفيف،
+    // عشان أي تعديل حديث عبر /profile ينعكس بالهيدر فوراً بدل ما يبقى
+    // عالق على قيمة وقت التسجيل. فشل هذا الطلب (لو صار) لا يغيّر شي —
+    // يبقى العرض الأولي كما هو، بدون أي كسر لتسجيل الدخول أو الجلسة.
+    if(session.user && session.user.id && session.access_token){
+      fetch('https://tnzxnjivkhyjijyotiog.supabase.co/rest/v1/profiles?id=eq.' + session.user.id + '&select=full_name,avatar_url', {
+        headers:{apikey: 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder', Authorization: 'Bearer ' + session.access_token}
+      }).then(function(res){ return res.ok ? res.json() : null; }).then(function(rows){
+        const p = rows && rows[0];
+        if(!p) return;
+        const freshName = p.full_name || name;
+        const nameEl = document.getElementById('headerName');
+        const avatarEl = document.getElementById('headerAvatar');
+        if(nameEl) nameEl.textContent = freshName.split(' ')[0];
+        if(avatarEl){
+          if(p.avatar_url){
+            avatarEl.innerHTML = '<img src="'+escapeHtml(p.avatar_url)+'">';
+          }else{
+            avatarEl.textContent = escapeHtml(freshName[0] || 'م');
+          }
+        }
+      }).catch(function(){ /* غير حرج — يبقى العرض الأولي بدون تغيير */ });
+    }
   }catch(e){
     localStorage.removeItem('laqaytaha_session');
   }
