@@ -304,9 +304,9 @@ async function aiEnhanceDescription(){
   const descField = document.getElementById('description');
   const description = descField.value.trim();
 
-  if(description.length < 10){
+  if(description.length < 2){
     resultBox.className = 'ai-result';
-    resultBox.innerHTML = '<span class="ai-error">اكتب وصفاً لا يقل عن 10 أحرف أولاً</span>';
+    resultBox.innerHTML = '<span class="ai-error">اكتب كلمة أو أكثر بالوصف أولاً</span>';
     return;
   }
 
@@ -355,11 +355,12 @@ async function aiGenerateTitles(){
   const resultBox = document.getElementById('aiTitlesResult');
   const descField = document.getElementById('description');
   const titleField = document.getElementById('title');
-  const description = descField.value.trim();
+  // المصدر: نص العنوان أولاً (استخدام الزر المباشر)، وإلا نص الوصف
+  const sourceText = titleField.value.trim() || descField.value.trim();
 
-  if(description.length < 10){
+  if(sourceText.length < 2){
     resultBox.className = 'ai-result';
-    resultBox.innerHTML = '<span class="ai-error">اكتب وصفاً لا يقل عن 10 أحرف أولاً حتى نقترح عناوين مناسبة</span>';
+    resultBox.innerHTML = '<span class="ai-error">اكتب كلمة أو أكثر بالعنوان أو الوصف أولاً</span>';
     return;
   }
 
@@ -375,7 +376,7 @@ async function aiGenerateTitles(){
         'Authorization': 'Bearer ' + session.access_token
       },
       body: JSON.stringify({
-        description,
+        description: sourceText,
         category: getSelectedCategoryName(),
         idempotency_key: crypto.randomUUID()
       })
