@@ -15,6 +15,7 @@ export async function onRequestPost(context) {
   const startTime = Date.now();
 
   try {
+    // ── 1) Authentication ──────────────────────────────────
     const authHeader = request.headers.get('Authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return json({ error: 'يجب تسجيل الدخول' }, 401);
@@ -37,6 +38,7 @@ export async function onRequestPost(context) {
       }
     });
 
+    // ── 2) Feature Enabled (Kill Switch) ───────────────────
     const settingsRes = await svc(`/rest/v1/app_settings?key=eq.ai_enabled&select=value`);
     const settingsData = settingsRes.ok ? await settingsRes.json() : [];
     const aiEnabled = settingsData[0]?.value === 'true';
@@ -44,6 +46,7 @@ export async function onRequestPost(context) {
       return json({ error: 'AI غير متاح مؤقتاً' }, 503);
     }
 
+    // ── 3) قراءة المدخلات ────────────────────────────────
     const body = await request.json();
     const description = (body.description || '').trim();
     const category = (body.category || '').trim();
@@ -52,13 +55,14 @@ export async function onRequestPost(context) {
     if (!idempotencyKey) {
       return json({ error: 'idempotency_key مطلوب' }, 400);
     }
-    if (description.length < 10) {
-      return json({ error: 'الوصف قصير جداً (10 أحرف على الأقل)' }, 400);
+    if (description.length < 2) {
+      return json({ error: 'اكتب كلمة أو أكثر أولاً' }, 400);
     }
     if (description.length > 2000) {
       return json({ error: 'الوصف طويل جداً (2000 حرف كحد أقصى)' }, 400);
     }
 
+    // ── 4) Idempotency Check ────────────────────────────────
     const idemRes = await svc(
       `/rest/v1/ai_idempotency?user_id=eq.${user.id}&idempotency_key=eq.${encodeURIComponent(idempotencyKey)}&select=*`
     );
@@ -98,6 +102,7 @@ export async function onRequestPost(context) {
         }
       ).catch(() => {});
 
+    // ── 5) Rate Limit (5 طلبات/دقيقة لكل مستخدم لكل feature) ─
     const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
     const rateRes = await svc(
       `/rest/v1/ai_usage?user_id=eq.${user.id}&feature=eq.${FEATURE}&created_at=gte.${oneMinuteAgo}&select=id`
@@ -108,6 +113,7 @@ export async function onRequestPost(context) {
       return json({ error: 'تجاوزت الحد المسموح، حاول بعد دقيقة' }, 429);
     }
 
+    // ── 6) Free Trial (2 محاولات ناجحة لكل feature) ─────────
     const usageRes = await svc(
       `/rest/v1/ai_usage?user_id=eq.${user.id}&feature=eq.${FEATURE}&status=eq.success&select=id`
     );
@@ -117,16 +123,21 @@ export async function onRequestPost(context) {
       return json({ error: 'استنفدت المحاولات المجانية لهذه الميزة' }, 402);
     }
 
-    const systemPrompt = `أنت مساعد متخصص في كتابة عناوين إعلانات الحراج في اليمن.
-المستخدم كتب الوصف التالي:
+    // ── 7) استدعاء DeepSeek ─────────────────────────────────
+    const systemPrompt = `أنت مساعد متخصص في كتابة عناوين إعلانات جذابة لمنصة الحراج في اليمن.
+المستخدم كتب النص التالي عن سلعته (قد يكون كلمة واحدة أو وصفاً كاملاً):
 "${description}"
 
 الفئة: ${category || 'غير محددة'}
 
 اقترح 3 عناوين جذابة لهذا الإعلان بحيث:
 - كل عنوان أقل من 60 حرفاً.
-- بدون معلومات مخترعة أو مبالغة.
-- تعتمد فقط على ما ذُكر بالوصف.
+- يمكن إضافة إيموجي واحد مناسب لكل عنوان لجعله أكثر جاذبية.
+- استخدم كلمات حماسية تشجع على النقر (مثل: فرصة، بحالة ممتازة، السعر مغري) بشرط ألا تتعارض مع النص المُدخل.
+
+قيود صارمة يجب الالتزام بها دائماً:
+- ممنوع منعاً باتاً إضافة أي مواصفة أو رقم أو موديل أو ميزة أو حالة لم يذكرها المستخدم صراحة.
+- إذا كتب المستخدم كلمة أو كلمتين فقط، اجعل العناوين حول نفس الكلمات المذكورة بالضبط فقط، دون اختراع أي موديل فرعي أو مواصفة (مثال: "ايفون 17" يجب أن يبقى "ايفون 17" في كل العناوين، ولا يتحول إلى "ايفون 17 برو" أو "برو ماكس").
 - بنفس اللغة (عربية يمنية بسيطة).
 
 أعد فقط قائمة العناوين الثلاثة، كل عنوان بسطر منفصل، بدون ترقيم أو شرح.`;
@@ -174,6 +185,7 @@ export async function onRequestPost(context) {
     const u = aiData.usage || {};
     const responsePayload = { titles, tokens_used: u.total_tokens || 0 };
 
+    // ── 8) Finalize ──────────────────────────────────────────
     await markIdempotency('completed', responsePayload);
     await logUsage(
       svc, user.id, FEATURE, 'success', Date.now() - startTime, null,
@@ -215,4 +227,4 @@ function json(obj, status = 200) {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8' }
   });
-         }
+}
