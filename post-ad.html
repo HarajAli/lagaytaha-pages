@@ -63,6 +63,19 @@
   .btn{width:100%;background:var(--green);color:#fff;border:none;padding:14px;border-radius:10px;
     font-weight:700;font-size:15px;margin-top:22px;cursor:pointer}
   .btn:disabled{opacity:.6;cursor:default}
+
+  .ai-btn{background:#fff;color:var(--green);border:1.5px solid var(--green);padding:8px 14px;
+    border-radius:8px;font-weight:700;font-size:13px;margin-top:8px;cursor:pointer}
+  .ai-btn:disabled{opacity:.55;cursor:default}
+  .ai-result{margin-top:8px;padding:10px 12px;background:#f6faf7;border:1px solid #dcecdf;
+    border-radius:8px;font-size:13px;line-height:1.7}
+  .ai-result.hidden{display:none}
+  .ai-result .ai-title-option{display:block;width:100%;text-align:right;background:#fff;
+    border:1px solid #dcecdf;border-radius:6px;padding:8px 10px;margin-top:6px;cursor:pointer;font-size:13px}
+  .ai-result .ai-title-option:hover{background:#eef7f0}
+  .ai-result .ai-error{color:#c0392b}
+  .ai-result .ai-apply-btn{margin-top:8px;background:var(--green);color:#fff;border:none;
+    padding:6px 12px;border-radius:6px;font-size:12.5px;cursor:pointer}
   .msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px;line-height:1.6}
   .msg.error{color:#c0392b}
   .msg.ok{color:var(--green)}
@@ -99,9 +112,13 @@
 
       <label>عنوان الإعلان</label>
       <input id="title" type="text" placeholder="مثال: آيفون 13 برو بحالة ممتازة" maxlength="150">
+      <button type="button" class="ai-btn" id="aiTitlesBtn" onclick="aiGenerateTitles()">💡 اقترح عناوين</button>
+      <div id="aiTitlesResult" class="ai-result hidden"></div>
 
       <label>الوصف</label>
       <textarea id="description" placeholder="اكتب تفاصيل عن السلعة، الحالة، سبب البيع، إلخ (اختياري)"></textarea>
+      <button type="button" class="ai-btn" id="aiEnhanceBtn" onclick="aiEnhanceDescription()">✨ حسّن الوصف</button>
+      <div id="aiEnhanceResult" class="ai-result hidden"></div>
 
       <div class="row2">
         <div>
@@ -262,6 +279,136 @@ async function cleanupAfterFailure(adId, uploadedPaths, token){
 function escapeHtml(s){
   if(s == null) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ---------- ميزات الذكاء الاصطناعي (المرحلة 1) ----------
+function getSelectedCategoryName(){
+  const subSel = document.getElementById('subCategory');
+  const mainSel = document.getElementById('mainCategory');
+  if(subSel && subSel.value && subSel.selectedOptions[0]) return subSel.selectedOptions[0].text;
+  if(mainSel && mainSel.value && mainSel.selectedOptions[0]) return mainSel.selectedOptions[0].text;
+  return '';
+}
+
+function aiErrorMessage(status, serverMsg){
+  if(status === 401) return 'يجب تسجيل الدخول لاستخدام هذه الميزة';
+  if(status === 402) return 'استنفدت المحاولات المجانية لهذه الميزة';
+  if(status === 429) return 'تجاوزت الحد المسموح، حاول بعد دقيقة';
+  if(status === 503) return 'ميزة الذكاء الاصطناعي غير متاحة مؤقتاً';
+  return serverMsg || 'تعذر تنفيذ الطلب، حاول مرة أخرى';
+}
+
+async function aiEnhanceDescription(){
+  const btn = document.getElementById('aiEnhanceBtn');
+  const resultBox = document.getElementById('aiEnhanceResult');
+  const descField = document.getElementById('description');
+  const description = descField.value.trim();
+
+  if(description.length < 10){
+    resultBox.className = 'ai-result';
+    resultBox.innerHTML = '<span class="ai-error">اكتب وصفاً لا يقل عن 10 أحرف أولاً</span>';
+    return;
+  }
+
+  btn.disabled = true;
+  resultBox.className = 'ai-result';
+  resultBox.textContent = 'جاري تحسين الوصف...';
+
+  try{
+    const res = await fetch('/api/ai/enhance-description', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token
+      },
+      body: JSON.stringify({
+        description,
+        category: getSelectedCategoryName(),
+        idempotency_key: crypto.randomUUID()
+      })
+    });
+    const data = await res.json();
+
+    if(!res.ok){
+      resultBox.innerHTML = `<span class="ai-error">${escapeHtml(aiErrorMessage(res.status, data.error))}</span>`;
+      return;
+    }
+
+    resultBox.innerHTML = `
+      <div>${escapeHtml(data.enhanced)}</div>
+      <button type="button" class="ai-apply-btn" id="applyEnhancedBtn">استخدام هذا الوصف</button>
+    `;
+    document.getElementById('applyEnhancedBtn').onclick = function(){
+      descField.value = data.enhanced;
+      resultBox.className = 'ai-result hidden';
+      resultBox.innerHTML = '';
+    };
+  }catch(e){
+    resultBox.innerHTML = '<span class="ai-error">تعذر الاتصال، تحقق من الإنترنت وحاول مرة أخرى</span>';
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function aiGenerateTitles(){
+  const btn = document.getElementById('aiTitlesBtn');
+  const resultBox = document.getElementById('aiTitlesResult');
+  const descField = document.getElementById('description');
+  const titleField = document.getElementById('title');
+  const description = descField.value.trim();
+
+  if(description.length < 10){
+    resultBox.className = 'ai-result';
+    resultBox.innerHTML = '<span class="ai-error">اكتب وصفاً لا يقل عن 10 أحرف أولاً حتى نقترح عناوين مناسبة</span>';
+    return;
+  }
+
+  btn.disabled = true;
+  resultBox.className = 'ai-result';
+  resultBox.textContent = 'جاري اقتراح عناوين...';
+
+  try{
+    const res = await fetch('/api/ai/generate-titles', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'Authorization': 'Bearer ' + session.access_token
+      },
+      body: JSON.stringify({
+        description,
+        category: getSelectedCategoryName(),
+        idempotency_key: crypto.randomUUID()
+      })
+    });
+    const data = await res.json();
+
+    if(!res.ok){
+      resultBox.innerHTML = `<span class="ai-error">${escapeHtml(aiErrorMessage(res.status, data.error))}</span>`;
+      return;
+    }
+
+    const titles = Array.isArray(data.titles) ? data.titles : [];
+    if(titles.length === 0){
+      resultBox.innerHTML = '<span class="ai-error">لم نتمكن من اقتراح عناوين، حاول مرة أخرى</span>';
+      return;
+    }
+
+    resultBox.innerHTML = titles.map((t, i) =>
+      `<button type="button" class="ai-title-option" data-idx="${i}">${escapeHtml(t)}</button>`
+    ).join('');
+
+    resultBox.querySelectorAll('.ai-title-option').forEach(elem => {
+      elem.onclick = function(){
+        titleField.value = titles[Number(elem.dataset.idx)];
+        resultBox.className = 'ai-result hidden';
+        resultBox.innerHTML = '';
+      };
+    });
+  }catch(e){
+    resultBox.innerHTML = '<span class="ai-error">تعذر الاتصال، تحقق من الإنترنت وحاول مرة أخرى</span>';
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 async function apiGet(path){
