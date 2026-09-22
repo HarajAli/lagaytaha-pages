@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>النقاط والباقات — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">طلبات شحن النقاط</div>
+          <button class="btn" onclick="loadPaymentRequests()">تحديث</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>المستخدم</th><th>الطريقة</th><th>النقاط</th><th>المبلغ</th><th>الإيصال</th><th>الحالة</th><th style="text-align:left;">إجراءات</th></tr>
+          </thead>
+          <tbody id="paymentsTableBody">
+            <tr><td colspan="7" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">إثباتات دفع الرسوم (بعد البيع)</div>
+          <button class="btn" onclick="loadFeePayments()">تحديث</button>
+        </div>
+        <table>
+          <thead>
+            <tr><th>البائع</th><th>الطريقة</th><th>المبلغ</th><th>الإيصال</th><th>الحالة</th><th style="text-align:left;">إجراءات</th></tr>
+          </thead>
+          <tbody id="feeTableBody">
+            <tr><td colspan="6" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="head"><div class="title">تعديل رصيد نقاط يدويًا</div></div>
+        <div style="padding:18px 22px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <input class="search-box" id="adjUserId" placeholder="معرّف المستخدم (UUID)" style="min-width:280px; border:1px solid #E7EAF3;">
+          <input class="search-box" id="adjPoints" type="number" placeholder="عدد النقاط (سالب للخصم)" style="width:180px; border:1px solid #E7EAF3;">
+          <input class="search-box" id="adjReason" placeholder="السبب (إلزامي)" style="min-width:220px; border:1px solid #E7EAF3;">
+          <button class="btn primary" onclick="adjustPoints()">تنفيذ</button>
+        </div>
+        <div class="note">تحتاج معرّف المستخدم (UUID) — تقدر تجيبه من صفحة المستخدمين لاحقًا.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  const STATUS_LABEL = { pending:'قيد المراجعة', approved:'مقبول', rejected:'مرفوض' };
+  const STATUS_CLASS = { pending:'st-pending', approved:'st-active', rejected:'st-rejected' };
+  const METHOD_LABEL = { kuraimi:'الكريمي', jaib:'جيب', jawali:'جوالي', cash:'كاش', other:'أخرى' };
+
+  async function loadPaymentRequests() {
+    const tbody = document.getElementById('paymentsTableBody');
+    tbody.innerHTML = '<tr><td colspan="7" class="note">جاري التحميل...</td></tr>';
+
+    const { data, error } = await selectRows('payment_requests', 'select=id,user_id,method,points,amount,receipt_path,status,created_at&order=created_at.desc&limit=30');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="7" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="note">لا توجد طلبات</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(p => `
+      <tr>
+        <td style="font-size:11px; color:#8a93ab;">${p.user_id}</td>
+        <td>${METHOD_LABEL[p.method] || escapeHtml(p.method)}</td>
+        <td>${p.points}</td>
+        <td>${p.amount != null ? Number(p.amount).toLocaleString('ar') : '—'}</td>
+        <td>${p.receipt_path ? `<button class="btn" onclick="openSignedFile('payment-receipts','${p.receipt_path}')">عرض</button>` : '—'}</td>
+        <td><span class="badge-status ${STATUS_CLASS[p.status] || 'st-other'}">${STATUS_LABEL[p.status] || p.status}</span></td>
+        <td style="text-align:left;">
+          ${p.status === 'pending' ? `
+            <button class="btn primary" onclick="approvePayment('${p.id}')">قبول</button>
+            <button class="btn danger" onclick="rejectPayment('${p.id}')">رفض</button>
+          ` : '—'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadFeePayments() {
+    const tbody = document.getElementById('feeTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="note">جاري التحميل...</td></tr>';
+
+    const { data, error } = await selectRows('fee_payments', 'select=id,seller_id,method,amount,receipt_path,status,created_at&order=created_at.desc&limit=30');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="note">لا توجد طلبات</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(p => `
+      <tr>
+        <td style="font-size:11px; color:#8a93ab;">${p.seller_id}</td>
+        <td>${METHOD_LABEL[p.method] || escapeHtml(p.method)}</td>
+        <td>${p.amount != null ? Number(p.amount).toLocaleString('ar') : '—'}</td>
+        <td>${p.receipt_path ? `<button class="btn" onclick="openSignedFile('payment-receipts','${p.receipt_path}')">عرض</button>` : '—'}</td>
+        <td><span class="badge-status ${STATUS_CLASS[p.status] || 'st-other'}">${STATUS_LABEL[p.status] || p.status}</span></td>
+        <td style="text-align:left;">
+          ${p.status === 'pending' ? `
+            <button class="btn primary" onclick="approveFee('${p.id}')">قبول</button>
+            <button class="btn danger" onclick="rejectFee('${p.id}')">رفض</button>
+          ` : '—'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function approvePayment(id) {
+    if (!confirm('تأكيد قبول طلب الشحن؟ سيتم إضافة النقاط فورًا.')) return;
+    const { error } = await rpc('admin_approve_payment_request', { p_request_id: id });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadPaymentRequests();
+  }
+  async function rejectPayment(id) {
+    const note = prompt('سبب الرفض (اختياري):') || null;
+    const { error } = await rpc('admin_reject_payment_request', { p_request_id: id, p_note: note });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadPaymentRequests();
+  }
+  async function approveFee(id) {
+    if (!confirm('تأكيد استلام الرسوم؟ سيتم إخفاء الإعلان المرتبط تلقائيًا.')) return;
+    const { error } = await rpc('admin_approve_fee_payment', { p_payment_id: id });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadFeePayments();
+  }
+  async function rejectFee(id) {
+    const reason = prompt('سبب الرفض:') || null;
+    const { error } = await rpc('admin_reject_fee_payment', { p_payment_id: id, p_reason: reason });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadFeePayments();
+  }
+
+  async function adjustPoints() {
+    const userId = document.getElementById('adjUserId').value.trim();
+    const points = parseInt(document.getElementById('adjPoints').value, 10);
+    const reason = document.getElementById('adjReason').value.trim();
+    if (!userId || !Number.isFinite(points) || !reason) { alert('عبّي كل الحقول (المعرّف، النقاط، السبب)'); return; }
+    if (!confirm(`تنفيذ تعديل ${points > 0 ? '+' : ''}${points} نقطة على المستخدم؟`)) return;
+    const { error } = await rpc('admin_adjust_points', { p_user_id: userId, p_points: points, p_reason: reason });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    alert('تم التعديل بنجاح');
+    document.getElementById('adjUserId').value = '';
+    document.getElementById('adjPoints').value = '';
+    document.getElementById('adjReason').value = '';
+  }
+
+  (async () => {
+    const result = await bootAdminPage('points', 'النقاط والباقات');
+    if (!result) return;
+    loadPaymentRequests();
+    loadFeePayments();
+  })();
+</script>
+</body>
+</html>

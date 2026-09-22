@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الإعدادات — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+      <div class="panel">
+        <div class="head">
+          <div class="title">إعدادات المنصة</div>
+          <button class="btn" onclick="loadSettings()">تحديث</button>
+        </div>
+        <table>
+          <thead><tr><th>المفتاح</th><th>القيمة الحالية</th><th style="text-align:left;">تعديل</th></tr></thead>
+          <tbody id="settingsTableBody">
+            <tr><td colspan="3" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+        <div class="note">هذي إعدادات عامة مخزّنة بجدول app_settings وتُقرأ مباشرة من الموقع والتطبيق — عدّل بحذر.</div>
+      </div>
+
+      <div class="panel">
+        <div class="head"><div class="title">إضافة إعداد جديد</div></div>
+        <div style="padding:18px 22px; display:flex; gap:10px; flex-wrap:wrap;">
+          <input class="search-box" id="newKey" placeholder="اسم المفتاح (مثال: min_price)" style="min-width:220px; border:1px solid #E7EAF3;">
+          <input class="search-box" id="newValue" placeholder="القيمة" style="min-width:220px; border:1px solid #E7EAF3;">
+          <button class="btn primary" onclick="addSetting()">إضافة / تحديث</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  async function loadSettings() {
+    const tbody = document.getElementById('settingsTableBody');
+    tbody.innerHTML = '<tr><td colspan="3" class="note">جاري التحميل...</td></tr>';
+
+    const { data, error } = await selectRows('app_settings', 'select=key,value&order=key.asc');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="3" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="note">لا توجد إعدادات بعد</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(s => `
+      <tr>
+        <td style="font-family:monospace; font-size:12px;">${escapeHtml(s.key)}</td>
+        <td>${escapeHtml(s.value)}</td>
+        <td style="text-align:left; display:flex; gap:6px; justify-content:flex-end;">
+          <input class="search-box" id="val_${escapeHtml(s.key)}" value="${escapeHtml(s.value)}" style="width:140px; border:1px solid #E7EAF3;">
+          <button class="btn primary" onclick="updateSetting('${escapeHtml(s.key)}')">حفظ</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function updateSetting(key) {
+    const value = document.getElementById('val_' + key).value;
+    const { error } = await rpc('admin_set_app_setting', { p_key: key, p_value: value });
+    if (error) { alert('فشل الحفظ: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadSettings();
+  }
+
+  async function addSetting() {
+    const key = document.getElementById('newKey').value.trim();
+    const value = document.getElementById('newValue').value;
+    if (!key) { alert('اكتب اسم المفتاح'); return; }
+    const { error } = await rpc('admin_set_app_setting', { p_key: key, p_value: value });
+    if (error) { alert('فشل: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    document.getElementById('newKey').value = '';
+    document.getElementById('newValue').value = '';
+    loadSettings();
+  }
+
+  (async () => {
+    const result = await bootAdminPage('settings', 'الإعدادات');
+    if (!result) return;
+    loadSettings();
+  })();
+</script>
+</body>
+</html>

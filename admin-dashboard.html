@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#EAF0FF;">🗂️</div><div class="label">إجمالي الإعلانات</div></div>
+          <div class="value" id="statTotalAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#EFF7EC;">✅</div><div class="label">إعلانات نشطة</div></div>
+          <div class="value" id="statActiveAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#FFF6E9;">⏳</div><div class="label">قيد المراجعة</div></div>
+          <div class="value" id="statPendingAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#FDEBEB;">🚩</div><div class="label">بلاغات قيد المراجعة</div></div>
+          <div class="value" id="statPendingReports">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#F0F2F9;">👥</div><div class="label">المستخدمون</div></div>
+          <div class="value" id="statUsers">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">أحدث الإعلانات</div>
+          <div>
+            <a class="btn" href="./admin-ads.html">فتح صفحة الإعلانات</a>
+            <button class="btn" onclick="loadAds()">تحديث</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الإعلان</th><th>السعر</th><th>الحالة</th><th>تاريخ النشر</th><th style="text-align:left;">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="adsTableBody">
+            <tr><td colspan="5" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">أحدث البلاغات</div>
+          <div>
+            <a class="btn" href="./admin-reports.html">فتح صفحة البلاغات</a>
+            <button class="btn" onclick="loadReports()">تحديث</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>السبب</th><th>النوع</th><th>الحالة</th><th>تاريخ البلاغ</th><th style="text-align:left;">إجراءات</th></tr>
+          </thead>
+          <tbody id="reportsTableBody">
+            <tr><td colspan="5" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <div class="head"><div class="title">الرسوم البيانية</div></div>
+        <div class="note">هذا القسم يحتاج جدول سجل عمليات (Audit Log) ليعرض اتجاهات زمنية حقيقية — مؤجّل حسب الأولوية المتفق عليها.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  let currentRole = null;
+
+  const AD_STATUS_LABEL = { draft:'مسودة', pending:'قيد المراجعة', active:'نشط', sold:'مباع', expired:'منتهي', rejected:'مرفوض', deleted:'محذوف', paused:'معلّق' };
+  const AD_STATUS_CLASS = { draft:'st-draft', pending:'st-pending', active:'st-active', sold:'st-other', expired:'st-other', rejected:'st-rejected', deleted:'st-deleted', paused:'st-other' };
+  const REPORT_STATUS_LABEL = { pending:'قيد المراجعة', reviewed:'تمت المراجعة', resolved:'تم الحل', dismissed:'مرفوض' };
+  const REPORT_STATUS_CLASS = { pending:'st-pending', reviewed:'st-other', resolved:'st-active', dismissed:'st-deleted' };
+
+  async function loadStats() {
+    const [ads, active, pending, reports, users] = await Promise.all([
+      selectCount('ads'),
+      selectCount('ads', '&status=eq.active'),
+      selectCount('ads', '&status=eq.pending'),
+      selectCount('reports', '&status=eq.pending'),
+      selectCount('profiles'),
+    ]);
+    document.getElementById('statTotalAds').textContent = ads.count ?? '—';
+    document.getElementById('statActiveAds').textContent = active.count ?? '—';
+    document.getElementById('statPendingAds').textContent = pending.count ?? '—';
+    document.getElementById('statPendingReports').textContent = reports.count ?? '—';
+    document.getElementById('statUsers').textContent = users.count ?? '—';
+  }
+
+  async function loadAds() {
+    const tbody = document.getElementById('adsTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="note">جاري التحميل...</td></tr>';
+
+    // نستثني الإعلانات المحذوفة من عرض "أحدث الإعلانات" بالرئيسية
+    const { data, error } = await selectRows('ads', 'select=id,title,price,currency,status,created_at&status=neq.deleted&order=created_at.desc&limit=20');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="5" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="note">لا توجد إعلانات بعد</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(ad => `
+      <tr>
+        <td>${escapeHtml(ad.title)}</td>
+        <td>${ad.price != null ? Number(ad.price).toLocaleString('ar') + ' ' + (ad.currency || '') : '—'}</td>
+        <td><span class="badge-status ${AD_STATUS_CLASS[ad.status] || 'st-other'}">${AD_STATUS_LABEL[ad.status] || ad.status}</span></td>
+        <td>${ad.created_at ? new Date(ad.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${ad.status === 'pending' ? `
+            <button class="btn primary" onclick="reviewAd('${ad.id}', true)">قبول</button>
+            <button class="btn danger" onclick="reviewAd('${ad.id}', false)">رفض</button>
+          ` : ''}
+          <button class="btn danger" onclick="deleteAd('${ad.id}')">حذف</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadReports() {
+    const tbody = document.getElementById('reportsTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="note">جاري التحميل...</td></tr>';
+
+    const { data, error } = await selectRows('reports', 'select=id,reason,target_type,status,created_at&order=created_at.desc&limit=20');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="5" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="note">لا توجد بلاغات بعد</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${escapeHtml(r.reason)}</td>
+        <td>${escapeHtml(r.target_type)}</td>
+        <td><span class="badge-status ${REPORT_STATUS_CLASS[r.status] || 'st-other'}">${REPORT_STATUS_LABEL[r.status] || r.status}</span></td>
+        <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${r.status === 'pending' ? `
+            <button class="btn primary" onclick="resolveReport('${r.id}', 'resolved')">حل</button>
+            <button class="btn" onclick="resolveReport('${r.id}', 'dismissed')">تجاهل</button>
+          ` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function reviewAd(id, approve) {
+    let reason = null;
+    if (!approve) reason = prompt('سبب الرفض (اختياري):') || null;
+    const { error } = await rpc('admin_review_ad', { p_ad_id: id, p_approve: approve, p_reason: reason });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadAds(); loadStats();
+  }
+
+  async function deleteAd(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا الإعلان؟')) return;
+    const { error } = await rpc('admin_delete_ad', { p_ad_id: id, p_permanent: false });
+    if (error) { alert('فشل الحذف: ' + (error.message || error.hint || JSON.stringify(error)) + (currentRole === 'moderator' ? ' (المشرف moderator لا يملك صلاحية الحذف)' : '')); return; }
+    loadAds(); loadStats();
+  }
+
+  async function resolveReport(id, status) {
+    const { error } = await rpc('admin_resolve_report', { p_report_id: id, p_status: status });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadReports(); loadStats();
+  }
+
+  (async () => {
+    const result = await bootAdminPage('dashboard', 'مرحبًا بك في لوحة التحكم');
+    if (!result) return;
+    currentRole = result.role;
+
+    loadStats();
+    loadAds();
+    loadReports();
+  })();
+</script>
+</body>
+</html>

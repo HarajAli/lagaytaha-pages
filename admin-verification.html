@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>التوثيق — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+      <div class="panel">
+        <div class="head">
+          <div class="title">طلبات التوثيق</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <select class="filter-select" id="statusFilter">
+              <option value="pending">قيد المراجعة</option>
+              <option value="approved">مقبولة</option>
+              <option value="rejected">مرفوضة</option>
+              <option value="">الكل</option>
+            </select>
+            <button class="btn" onclick="loadRequests()">تحديث</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>الاسم بالهوية</th><th>المستندات</th><th>الحالة</th><th>تاريخ الطلب</th><th style="text-align:left;">إجراءات</th></tr>
+          </thead>
+          <tbody id="tableBody">
+            <tr><td colspan="5" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  const STATUS_LABEL = { pending:'قيد المراجعة', approved:'مقبول', rejected:'مرفوض' };
+  const STATUS_CLASS = { pending:'st-pending', approved:'st-active', rejected:'st-rejected' };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('statusFilter').addEventListener('change', loadRequests);
+  });
+
+  async function loadRequests() {
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="note">جاري التحميل...</td></tr>';
+
+    const status = document.getElementById('statusFilter').value;
+    let query = 'select=id,full_name_on_id,id_document_url,selfie_url,status,created_at,rejection_reason&order=created_at.desc&limit=50';
+    if (status) query += `&status=eq.${status}`;
+
+    const { data, error } = await selectRows('verification_requests', query);
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="5" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="note">لا توجد طلبات</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>
+          <div style="font-weight:700;">${escapeHtml(r.full_name_on_id || '—')}</div>
+          ${r.status === 'rejected' && r.rejection_reason ? `<div style="font-size:11px; color:#E24C4C;">سبب الرفض: ${escapeHtml(r.rejection_reason)}</div>` : ''}
+        </td>
+        <td>
+          ${r.id_document_url ? `<button class="btn" onclick="openSignedFile('verification-docs', '${r.id_document_url}')">الهوية</button>` : ''}
+          ${r.selfie_url ? `<button class="btn" onclick="openSignedFile('verification-docs', '${r.selfie_url}')">سيلفي</button>` : ''}
+        </td>
+        <td><span class="badge-status ${STATUS_CLASS[r.status] || 'st-other'}">${STATUS_LABEL[r.status] || r.status}</span></td>
+        <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${r.status === 'pending' ? `
+            <button class="btn primary" onclick="approveReq('${r.id}')">قبول</button>
+            <button class="btn danger" onclick="rejectReq('${r.id}')">رفض</button>
+          ` : '—'}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function approveReq(id) {
+    if (!confirm('قبول طلب التوثيق هذا؟')) return;
+    const { error } = await rpc('approve_verification', { p_request_id: id });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadRequests();
+  }
+
+  async function rejectReq(id) {
+    const reason = prompt('سبب الرفض:');
+    if (reason == null) return;
+    const { error } = await rpc('reject_verification', { p_request_id: id, p_reason: reason });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadRequests();
+  }
+
+  (async () => {
+    const result = await bootAdminPage('verification', 'طلبات التوثيق');
+    if (!result) return;
+    loadRequests();
+  })();
+</script>
+</body>
+</html>

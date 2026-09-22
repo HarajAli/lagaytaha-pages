@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الإعلانات — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+      <div class="panel">
+        <div class="head">
+          <div class="title">كل الإعلانات</div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <div class="search-box">
+              <span>🔎</span>
+              <input id="searchInput" placeholder="ابحث بعنوان الإعلان...">
+            </div>
+            <select class="filter-select" id="statusFilter">
+              <option value="">كل الحالات</option>
+              <option value="pending">قيد المراجعة</option>
+              <option value="active">نشط</option>
+              <option value="paused">معلّق</option>
+              <option value="rejected">مرفوض</option>
+              <option value="sold">مباع</option>
+              <option value="expired">منتهي</option>
+              <option value="deleted">محذوف</option>
+              <option value="draft">مسودة</option>
+            </select>
+            <button class="btn" onclick="page=0; loadAds();">تحديث</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الإعلان</th><th>السعر</th><th>الحالة</th><th>مميّز</th><th>تاريخ النشر</th><th style="text-align:left;">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="adsTableBody">
+            <tr><td colspan="6" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+        <div class="pager">
+          <button class="btn" id="prevBtn" onclick="prevPage()">السابق</button>
+          <span id="pagerInfo">صفحة 1</span>
+          <button class="btn" id="nextBtn" onclick="nextPage()">التالي</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  let currentRole = null;
+  let page = 0;
+  const PAGE_SIZE = 20;
+
+  const AD_STATUS_LABEL = { draft:'مسودة', pending:'قيد المراجعة', active:'نشط', sold:'مباع', expired:'منتهي', rejected:'مرفوض', deleted:'محذوف', paused:'معلّق' };
+  const AD_STATUS_CLASS = { draft:'st-draft', pending:'st-pending', active:'st-active', sold:'st-other', expired:'st-other', rejected:'st-rejected', deleted:'st-deleted', paused:'st-other' };
+
+  let searchDebounce = null;
+  document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('searchInput').addEventListener('input', () => {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => { page = 0; loadAds(); }, 350);
+    });
+    document.getElementById('statusFilter').addEventListener('change', () => { page = 0; loadAds(); });
+  });
+
+  async function loadAds() {
+    const tbody = document.getElementById('adsTableBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="note">جاري التحميل...</td></tr>';
+
+    const search = document.getElementById('searchInput').value.trim();
+    const status = document.getElementById('statusFilter').value;
+
+    let query = `select=id,title,price,currency,status,is_featured,created_at&order=created_at.desc&limit=${PAGE_SIZE}&offset=${page * PAGE_SIZE}`;
+    if (search) query += `&title=ilike.*${encodeURIComponent(search)}*`;
+    if (status) query += `&status=eq.${status}`;
+
+    const { data, error } = await selectRows('ads', query);
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="note">لا توجد نتائج</td></tr>'; document.getElementById('pagerInfo').textContent = `صفحة ${page+1}`; return; }
+
+    tbody.innerHTML = data.map(ad => `
+      <tr>
+        <td>${escapeHtml(ad.title)}</td>
+        <td>${ad.price != null ? Number(ad.price).toLocaleString('ar') + ' ' + (ad.currency || '') : '—'}</td>
+        <td><span class="badge-status ${AD_STATUS_CLASS[ad.status] || 'st-other'}">${AD_STATUS_LABEL[ad.status] || ad.status}</span></td>
+        <td>${ad.is_featured ? '⭐' : '—'}</td>
+        <td>${ad.created_at ? new Date(ad.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${ad.status === 'pending' ? `
+            <button class="btn primary" onclick="reviewAd('${ad.id}', true)">قبول</button>
+            <button class="btn danger" onclick="reviewAd('${ad.id}', false)">رفض</button>
+          ` : ''}
+          ${ad.is_featured ? `<button class="btn" onclick="unfeature('${ad.id}')">إلغاء التمييز</button>` : ''}
+          ${ad.status !== 'deleted' ? `<button class="btn danger" onclick="deleteAd('${ad.id}')">حذف</button>` : ''}
+          ${currentRole === 'super_admin' ? `<button class="btn danger" onclick="deletePermanent('${ad.id}')">حذف نهائي</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    document.getElementById('pagerInfo').textContent = `صفحة ${page+1}`;
+    document.getElementById('prevBtn').disabled = page === 0;
+    document.getElementById('nextBtn').disabled = data.length < PAGE_SIZE;
+  }
+
+  function prevPage() { if (page > 0) { page--; loadAds(); } }
+  function nextPage() { page++; loadAds(); }
+
+  async function reviewAd(id, approve) {
+    let reason = null;
+    if (!approve) reason = prompt('سبب الرفض (اختياري):') || null;
+    const { error } = await rpc('admin_review_ad', { p_ad_id: id, p_approve: approve, p_reason: reason });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadAds();
+  }
+
+  async function deleteAd(id) {
+    if (!confirm('حذف هذا الإعلان (سيختفي من الموقع، ويبقى مؤرشفًا)؟')) return;
+    const { error } = await rpc('admin_delete_ad', { p_ad_id: id, p_permanent: false });
+    if (error) { alert('فشل الحذف: ' + (error.message || error.hint || JSON.stringify(error)) + (currentRole === 'moderator' ? ' (moderator لا يملك صلاحية الحذف)' : '')); return; }
+    loadAds();
+  }
+
+  async function deletePermanent(id) {
+    if (!confirm('حذف نهائي — لا يمكن التراجع عن هذا الإجراء إطلاقًا. متأكد؟')) return;
+    const { error } = await rpc('admin_delete_ad', { p_ad_id: id, p_permanent: true });
+    if (error) { alert('فشل الحذف: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadAds();
+  }
+
+  async function unfeature(id) {
+    const { error } = await rpc('admin_unfeature_ad', { p_ad_id: id });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadAds();
+  }
+
+  (async () => {
+    const result = await bootAdminPage('ads', 'إدارة الإعلانات');
+    if (!result) return;
+    currentRole = result.role;
+    loadAds();
+  })();
+</script>
+</body>
+</html>
