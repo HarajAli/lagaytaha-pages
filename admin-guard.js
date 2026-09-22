@@ -115,9 +115,12 @@ function renderSidebar(activeKey) {
 function renderTopbar(title, subtitle) {
   return `
     <div class="topbar">
-      <div>
-        <h2>${title}</h2>
-        <div class="subtitle">${subtitle || 'لقيتها — سوق اليمن المفتوح'}</div>
+      <div style="display:flex; align-items:center;">
+        <button class="hamburger-btn" onclick="toggleSidebar()" aria-label="القائمة">☰</button>
+        <div>
+          <h2>${title}</h2>
+          <div class="subtitle">${subtitle || 'لقيتها — سوق اليمن المفتوح'}</div>
+        </div>
       </div>
       <div class="who">
         <div class="avatar" id="avatarLetter">أ</div>
@@ -127,6 +130,21 @@ function renderTopbar(title, subtitle) {
         </div>
       </div>
     </div>`;
+}
+
+// ===== التحكم بالقائمة الجانبية على الجوال (تظهر/تختفي كقائمة منسدلة) =====
+function openSidebar() {
+  document.querySelector('.sidebar')?.classList.add('open');
+  document.getElementById('sidebarOverlay')?.classList.add('open');
+}
+function closeSidebar() {
+  document.querySelector('.sidebar')?.classList.remove('open');
+  document.getElementById('sidebarOverlay')?.classList.remove('open');
+}
+function toggleSidebar() {
+  const sb = document.querySelector('.sidebar');
+  if (!sb) return;
+  sb.classList.contains('open') ? closeSidebar() : openSidebar();
 }
 
 function fillUserInfo(result) {
@@ -167,6 +185,19 @@ async function bootAdminPage(activeKey, title, subtitle) {
   document.getElementById('sidebarSlot').outerHTML = renderSidebar(activeKey);
   document.getElementById('topbarSlot').outerHTML = renderTopbar(title, subtitle);
   fillUserInfo(result);
+
+  // طبقة تعتيم خلف القائمة الجانبية على الجوال — تُغلق القائمة عند الضغط عليها
+  if (!document.getElementById('sidebarOverlay')) {
+    const overlay = document.createElement('div');
+    overlay.id = 'sidebarOverlay';
+    overlay.className = 'sidebar-overlay';
+    overlay.onclick = closeSidebar;
+    document.body.appendChild(overlay);
+  }
+  // إغلاق القائمة تلقائيًا عند الضغط على أي رابط تنقّل بالجوال
+  document.querySelectorAll('.sidebar .nav a:not(.disabled)').forEach(a => {
+    a.addEventListener('click', closeSidebar);
+  });
 
   document.getElementById('accessDenied').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
