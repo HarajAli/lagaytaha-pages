@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>لوحة إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+<style>
+  /* ===== قسم «أداء التطبيق» ===== */
+  .perf { background:linear-gradient(180deg,#EEF4FB,#F6F9FD); border-radius:20px; padding:20px; margin-bottom:20px; }
+  .perf-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:6px; }
+  .perf-title { display:flex; align-items:center; gap:10px; font-size:17px; font-weight:900; color:#10275A; }
+  .perf-title .dot { width:10px; height:10px; border-radius:50%; background:#12B8A6; }
+  .perf-sub { font-size:13px; font-weight:700; color:#6B7A99; margin:16px 2px 10px; }
+  .perf-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; }
+  .perf-card { background:#fff; border-radius:18px; padding:16px 18px; box-shadow:0 2px 6px rgba(16,39,90,.06); }
+  .perf-card .top { display:flex; align-items:center; gap:10px; }
+  .perf-card .ico { width:40px; height:40px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:20px; flex:none; }
+  .perf-card .lbl { font-size:13px; font-weight:700; color:#6B7A99; }
+  .perf-card .val { font-size:26px; font-weight:900; color:#10275A; margin-top:10px; direction:ltr; text-align:right; }
+  .perf-note { font-size:12px; color:#8a93ab; margin-top:14px; line-height:1.8; }
+  @media (max-width: 900px) { .perf-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+</style>
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+
+      <div class="perf">
+        <div class="perf-head">
+          <div class="perf-title"><span class="dot"></span>أداء التطبيق</div>
+          <button class="btn" id="perfRefresh" onclick="loadAppStats()">تحديث</button>
+        </div>
+
+        <div class="perf-sub">التثبيتات — جهاز فتح التطبيق لأول مرة</div>
+        <div class="perf-grid">
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#E3F5EE;">🤖</div><div class="lbl">أندرويد</div></div>
+            <div class="val" id="perfAndroid">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#F0F4FA;">🍎</div><div class="lbl">آبل (iOS)</div></div>
+            <div class="val" id="perfIos">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#E6EDFB;">📱</div><div class="lbl">الإجمالي</div></div>
+            <div class="val" id="perfTotal">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#FDEFDD;">🆕</div><div class="lbl">آخر ٧ أيام</div></div>
+            <div class="val" id="perfNew7">—</div>
+          </div>
+        </div>
+
+        <div class="perf-sub">الحسابات والنشاط</div>
+        <div class="perf-grid">
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#E6EDFB;">👥</div><div class="lbl">كل الحسابات</div></div>
+            <div class="val" id="perfAll">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#E3F5EE;">🟢</div><div class="lbl">نشط اليوم</div></div>
+            <div class="val" id="perfToday">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#E3F5EE;">📅</div><div class="lbl">نشط ٧ أيام</div></div>
+            <div class="val" id="perfActive7">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#F0F4FA;">🗓️</div><div class="lbl">نشط ٣٠ يوماً</div></div>
+            <div class="val" id="perfActive30">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#F1EAFB;">✅</div><div class="lbl">حساب مسجّل</div></div>
+            <div class="val" id="perfRegistered">—</div>
+          </div>
+          <div class="perf-card">
+            <div class="top"><div class="ico" style="background:#F0F4FA;">👤</div><div class="lbl">ضيف</div></div>
+            <div class="val" id="perfGuests">—</div>
+          </div>
+        </div>
+
+        <div class="perf-note" id="perfNote"></div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#EAF0FF;">🗂️</div><div class="label">إجمالي الإعلانات</div></div>
+          <div class="value" id="statTotalAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#EFF7EC;">✅</div><div class="label">إعلانات نشطة</div></div>
+          <div class="value" id="statActiveAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#FFF6E9;">⏳</div><div class="label">قيد المراجعة</div></div>
+          <div class="value" id="statPendingAds">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#FDEBEB;">🚩</div><div class="label">بلاغات قيد المراجعة</div></div>
+          <div class="value" id="statPendingReports">—</div>
+        </div>
+        <div class="stat-card">
+          <div class="row"><div class="ico" style="background:#F0F2F9;">👥</div><div class="label">المستخدمون</div></div>
+          <div class="value" id="statUsers">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">أحدث الإعلانات</div>
+          <div>
+            <a class="btn" href="./admin-ads.html">فتح صفحة الإعلانات</a>
+            <button class="btn" onclick="loadAds()">تحديث</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>الإعلان</th><th>السعر</th><th>الحالة</th><th>تاريخ النشر</th><th style="text-align:left;">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="adsTableBody">
+            <tr><td colspan="5" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="head">
+          <div class="title">أحدث البلاغات</div>
+          <div>
+            <a class="btn" href="./admin-reports.html">فتح صفحة البلاغات</a>
+            <button class="btn" onclick="loadReports()">تحديث</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+        <table>
+          <thead>
+            <tr><th>السبب</th><th>النوع</th><th>الحالة</th><th>تاريخ البلاغ</th><th style="text-align:left;">إجراءات</th></tr>
+          </thead>
+          <tbody id="reportsTableBody">
+            <tr><td colspan="5" class="note">جاري التحميل...</td></tr>
+          </tbody>
+        </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="head"><div class="title">الرسوم البيانية</div></div>
+        <div class="note">هذا القسم يحتاج جدول سجل عمليات (Audit Log) ليعرض اتجاهات زمنية حقيقية — مؤجّل حسب الأولوية المتفق عليها.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  let currentRole = null;
+
+  const AD_STATUS_LABEL = { draft:'مسودة', pending:'قيد المراجعة', active:'نشط', sold:'مباع', expired:'منتهي', rejected:'مرفوض', deleted:'محذوف', paused:'معلّق' };
+  const AD_STATUS_CLASS = { draft:'st-draft', pending:'st-pending', active:'st-active', sold:'st-other', expired:'st-other', rejected:'st-rejected', deleted:'st-deleted', paused:'st-other' };
+  const REPORT_STATUS_LABEL = { pending:'قيد المراجعة', reviewed:'تمت المراجعة', resolved:'تم الحل', dismissed:'مرفوض' };
+  const REPORT_STATUS_CLASS = { pending:'st-pending', reviewed:'st-other', resolved:'st-active', dismissed:'st-deleted' };
+
+  async function loadStats() {
+    const [ads, active, pending, reports, users] = await Promise.all([
+      selectCount('ads'),
+      selectCount('ads', '&status=eq.active'),
+      selectCount('ads', '&status=eq.pending'),
+      selectCount('reports', '&status=eq.pending'),
+      selectCount('profiles'),
+    ]);
+    document.getElementById('statTotalAds').textContent = ads.count ?? '—';
+    document.getElementById('statActiveAds').textContent = active.count ?? '—';
+    document.getElementById('statPendingAds').textContent = pending.count ?? '—';
+    document.getElementById('statPendingReports').textContent = reports.count ?? '—';
+    document.getElementById('statUsers').textContent = users.count ?? '—';
+  }
+
+  // ===== أداء التطبيق: كل الأرقام من دالة admin_app_stats (للإدارة فقط) =====
+  function fmtNum(n) {
+    return (n === null || n === undefined) ? '—' : Number(n).toLocaleString('en-US');
+  }
+
+  async function loadAppStats() {
+    const btn = document.getElementById('perfRefresh');
+    const note = document.getElementById('perfNote');
+    btn.disabled = true;
+    const { data, error } = await rpc('admin_app_stats');
+    btn.disabled = false;
+
+    if (error || !data) {
+      note.textContent = 'تعذر تحميل إحصائيات الأداء. تأكد من تشغيل ملف SQL الخاص بها في Supabase.';
+      return;
+    }
+
+    const map = {
+      perfAndroid: data.installs_android,
+      perfIos: data.installs_ios,
+      perfTotal: data.installs_total,
+      perfNew7: data.installs_7d,
+      perfAll: data.all_accounts,
+      perfToday: data.active_today,
+      perfActive7: data.active_7d,
+      perfActive30: data.active_30d,
+      perfRegistered: data.registered,
+      perfGuests: data.guests,
+    };
+    Object.keys(map).forEach((id) => {
+      document.getElementById(id).textContent = fmtNum(map[id]);
+    });
+
+    if (data.tracking_since) {
+      const since = new Date(data.tracking_since).toLocaleDateString('en-GB');
+      note.textContent = 'التثبيتات والنشاط محسوبة من ' + since +
+        ' (أول نسخة من التطبيق فيها التتبع). «ضيف» = جهاز فتح التطبيق ولم يسجّل دخولاً. ' +
+        '«حساب مسجّل» = كل الحسابات الموجودة بالقاعدة.';
+    } else {
+      note.textContent = 'لم يُسجَّل أي جهاز بعد — تبدأ الأرقام بالظهور بعد وصول تحديث التطبيق (1.0.1) للمستخدمين. ' +
+        'عدد الحسابات المسجّلة يظهر من الآن.';
+    }
+  }
+
+  async function loadAds() {
+    const tbody = document.getElementById('adsTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="note">جاري التحميل...</td></tr>';
+
+    // نستثني الإعلانات المحذوفة من عرض "أحدث الإعلانات" بالرئيسية
+    const { data, error } = await selectRows('ads', 'select=id,title,price,currency,status,created_at&status=neq.deleted&order=created_at.desc&limit=20');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="5" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="note">لا توجد إعلانات بعد</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(ad => `
+      <tr>
+        <td>${escapeHtml(ad.title)}</td>
+        <td>${ad.price != null ? Number(ad.price).toLocaleString('ar') + ' ' + (ad.currency || '') : '—'}</td>
+        <td><span class="badge-status ${AD_STATUS_CLASS[ad.status] || 'st-other'}">${AD_STATUS_LABEL[ad.status] || ad.status}</span></td>
+        <td>${ad.created_at ? new Date(ad.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${ad.status === 'pending' ? `
+            <button class="btn primary" onclick="reviewAd('${ad.id}', true)">قبول</button>
+            <button class="btn danger" onclick="reviewAd('${ad.id}', false)">رفض</button>
+          ` : ''}
+          <button class="btn danger" onclick="deleteAd('${ad.id}')">حذف</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function loadReports() {
+    const tbody = document.getElementById('reportsTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="note">جاري التحميل...</td></tr>';
+
+    const { data, error } = await selectRows('reports', 'select=id,reason,target_type,status,created_at&order=created_at.desc&limit=20');
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="5" class="note">تعذّر التحميل: ${escapeHtml(error.message || error.hint || 'خطأ غير معروف')}</td></tr>`; return; }
+    if (!data || data.length === 0) { tbody.innerHTML = '<tr><td colspan="5" class="note">لا توجد بلاغات بعد</td></tr>'; return; }
+
+    tbody.innerHTML = data.map(r => `
+      <tr>
+        <td>${escapeHtml(r.reason)}</td>
+        <td>${escapeHtml(r.target_type)}</td>
+        <td><span class="badge-status ${REPORT_STATUS_CLASS[r.status] || 'st-other'}">${REPORT_STATUS_LABEL[r.status] || r.status}</span></td>
+        <td>${r.created_at ? new Date(r.created_at).toLocaleDateString('ar') : '—'}</td>
+        <td style="text-align:left;">
+          ${r.status === 'pending' ? `
+            <button class="btn primary" onclick="resolveReport('${r.id}', 'resolved')">حل</button>
+            <button class="btn" onclick="resolveReport('${r.id}', 'dismissed')">تجاهل</button>
+          ` : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function reviewAd(id, approve) {
+    let reason = null;
+    if (!approve) reason = prompt('سبب الرفض (اختياري):') || null;
+    const { error } = await rpc('admin_review_ad', { p_ad_id: id, p_approve: approve, p_reason: reason });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadAds(); loadStats();
+  }
+
+  async function deleteAd(id) {
+    if (!confirm('هل أنت متأكد من حذف هذا الإعلان؟')) return;
+    const { error } = await rpc('admin_delete_ad', { p_ad_id: id, p_permanent: false });
+    if (error) { alert('فشل الحذف: ' + (error.message || error.hint || JSON.stringify(error)) + (currentRole === 'moderator' ? ' (المشرف moderator لا يملك صلاحية الحذف)' : '')); return; }
+    loadAds(); loadStats();
+  }
+
+  async function resolveReport(id, status) {
+    const { error } = await rpc('admin_resolve_report', { p_report_id: id, p_status: status });
+    if (error) { alert('فشل الإجراء: ' + (error.message || error.hint || JSON.stringify(error))); return; }
+    loadReports(); loadStats();
+  }
+
+  (async () => {
+    const result = await bootAdminPage('dashboard', 'مرحبًا بك في لوحة التحكم');
+    if (!result) return;
+    currentRole = result.role;
+
+    loadAppStats();
+    loadStats();
+    loadAds();
+    loadReports();
+  })();
+</script>
+</body>
+</html>
