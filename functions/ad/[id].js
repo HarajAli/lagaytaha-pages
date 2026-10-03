@@ -20,6 +20,13 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// قيمة العملة المخزّنة نص عربي للعرض؛ محركات البحث تحتاج رمز ISO.
+function isoCurrency(c) {
+  if (c === 'ريال سعودي') return 'SAR';
+  if (c === 'دولار') return 'USD';
+  return 'YER';
+}
+
 function formatPrice(price, currency) {
   if (price == null) return 'السعر عند الاتصال';
   const formatted = Number(price).toLocaleString('en-US');
@@ -99,7 +106,7 @@ export async function onRequestGet(context) {
     offers: {
       '@type': 'Offer',
       price: ad.price != null ? String(ad.price) : undefined,
-      priceCurrency: ad.currency || 'YER',
+      priceCurrency: isoCurrency(ad.currency),
       availability,
       url: canonicalUrl,
     },
@@ -134,7 +141,7 @@ export async function onRequestGet(context) {
 <meta property="og:url" content="${canonicalUrl}">
 <meta property="og:site_name" content="لقيتها">
 <meta property="product:price:amount" content="${ad.price != null ? escapeHtml(String(ad.price)) : ''}">
-<meta property="product:price:currency" content="${escapeHtml(ad.currency || 'YER')}">
+<meta property="product:price:currency" content="${escapeHtml(isoCurrency(ad.currency))}">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="${escapeHtml(ad.title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
