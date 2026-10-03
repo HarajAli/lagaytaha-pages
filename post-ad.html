@@ -122,8 +122,15 @@
 
       <div class="row2">
         <div>
-          <label>السعر (ريال يمني)</label>
+          <label>السعر</label>
           <input id="price" type="number" min="0" placeholder="اختياري">
+          <label style="margin-top:8px">العملة</label>
+          <select id="currency">
+            <option value="ريال صنعاء">ريال صنعاء</option>
+            <option value="ريال عدن">ريال عدن</option>
+            <option value="ريال سعودي">ريال سعودي</option>
+            <option value="دولار">دولار</option>
+          </select>
         </div>
         <div>
           <label>الحالة</label>
@@ -445,8 +452,25 @@ document.getElementById('mainCategory').addEventListener('change', async functio
 });
 
 // ---------- المحافظات والمدن ----------
+// العملة الافتراضية لكل محافظة (ريال صنعاء / ريال عدن) — تُقترح تلقائياً
+// والمستخدم يقدر يغيّرها. لو عمود default_currency غير موجود بعد بقاعدة
+// البيانات نرجع للطلب القديم حتى لا تتعطل قائمة المحافظات.
+const GOV_CURRENCY = {};
+let currencyTouched = false;
+document.getElementById('currency').addEventListener('change', function(){ currencyTouched = true; });
+async function fetchGovernorates(){
+  let govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar,default_currency');
+  if(!govs.length) govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar');
+  govs.forEach(g => { if(g.default_currency) GOV_CURRENCY[g.id] = g.default_currency; });
+  return govs;
+}
+function applyDefaultCurrency(govId){
+  if(currencyTouched || !govId || !GOV_CURRENCY[govId]) return;
+  document.getElementById('currency').value = GOV_CURRENCY[govId];
+}
+
 async function loadGovernorates(){
-  const govs = await apiGet('governorates?is_active=eq.true&order=name_ar&select=id,name_ar');
+  const govs = await fetchGovernorates();
   const sel = document.getElementById('governorate');
   sel.innerHTML = '<option value="">اختياري</option>' +
     govs.map(g => `<option value="${g.id}">${escapeHtml(g.name_ar)}</option>`).join('');
@@ -455,6 +479,7 @@ loadGovernorates();
 
 document.getElementById('governorate').addEventListener('change', async function(){
   const govId = this.value;
+  applyDefaultCurrency(govId);
   const citySel = document.getElementById('city');
   if(!govId){
     citySel.innerHTML = '<option value="">اختر المحافظة أولاً</option>';
@@ -573,7 +598,7 @@ async function submitAd(){
       user_id: uid,
       category_id: Number(categoryId),
       title,
-      currency: 'YER',
+      currency: document.getElementById('currency').value || 'ريال صنعاء',
       allow_calls: allowCalls,
       allow_whatsapp: allowWhatsapp,
     };
