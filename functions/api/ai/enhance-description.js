@@ -7,7 +7,7 @@ const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions';
 const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
 const FEATURE = 'enhance-description';
-const FREE_TRIAL_LIMIT = 2;
+const FREE_TRIAL_LIMIT = 5;
 const RATE_LIMIT_PER_MINUTE = 5;
 
 export async function onRequestPost(context) {
@@ -120,7 +120,8 @@ export async function onRequestPost(context) {
       `/rest/v1/ai_usage?user_id=eq.${user.id}&feature=eq.${FEATURE}&status=eq.success&select=id`
     );
     const usageRows = usageRes.ok ? await usageRes.json() : [];
-    if (Array.isArray(usageRows) && usageRows.length >= FREE_TRIAL_LIMIT) {
+    const freeLimit = await getFreeTrialLimit(svc);
+    if (Array.isArray(usageRows) && usageRows.length >= freeLimit) {
       await markIdempotency('failed');
       return json({ error: 'استنفدت المحاولات المجانية لهذه الميزة' }, 402);
     }
@@ -199,6 +200,19 @@ export async function onRequestPost(context) {
 
   } catch (e) {
     return json({ error: 'حدث خطأ غير متوقع' }, 500);
+  }
+}
+
+// عدد المحاولات المجانية لكل ميزة لكل مستخدم — يُقرأ من إعداد
+// ai_free_trial_limit بلوحة الإدارة، والافتراضي FREE_TRIAL_LIMIT.
+async function getFreeTrialLimit(svc) {
+  try {
+    const res = await svc(`/rest/v1/app_settings?key=eq.ai_free_trial_limit&select=value`);
+    const rows = res.ok ? await res.json() : [];
+    const n = parseInt(rows[0]?.value, 10);
+    return Number.isFinite(n) && n >= 0 ? n : FREE_TRIAL_LIMIT;
+  } catch (e) {
+    return FREE_TRIAL_LIMIT;
   }
 }
 
