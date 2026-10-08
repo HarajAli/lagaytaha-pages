@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تواصل معنا - لقيتها</title>
+<meta name="description" content="تواصل مع فريق دعم لقيتها: مشكلة، اقتراح، شكوى أو استفسار.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{--green:#0F6E56;--bg:#f5f5f4;--card:#ffffff;--text:#1e1e1e;--muted:#777;--border:#eceae7}
+  *{box-sizing:border-box}
+  body{font-family:'Tajawal',system-ui,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+  a{text-decoration:none;color:inherit}
+  header.site{background:#fff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .header-inner{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;max-width:1180px;margin:0 auto}
+  .logo{font-weight:800;font-size:20px;color:var(--green)}
+  .back-link{font-size:13px;color:var(--green);font-weight:700}
+  .page-head{padding:22px 16px 10px;max-width:640px;margin:0 auto}
+  .page-head h1{font-size:20px;margin:0 0 4px}
+  .page-head p{margin:0;font-size:13px;color:var(--muted)}
+  .wrap{max-width:640px;margin:0 auto;padding:10px 16px 40px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px}
+  .mail-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .mail-row .lbl{font-size:13px;color:var(--muted)}
+  .mail-row a{color:var(--green);font-weight:800;direction:ltr;font-size:14.5px}
+  .thread{display:flex;flex-direction:column;gap:8px;max-height:52vh;min-height:140px;overflow-y:auto;padding:4px 2px}
+  .msg{max-width:84%;padding:9px 12px;border-radius:14px;font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word}
+  .msg.me{align-self:flex-start;background:var(--green);color:#fff;border-bottom-right-radius:4px}
+  .msg.staff{align-self:flex-end;background:#f0efec;border-bottom-left-radius:4px}
+  .msg .who{font-size:11px;font-weight:800;color:var(--green);margin-bottom:2px}
+  .msg .meta{font-size:10.5px;opacity:.75;margin-top:3px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{border:1px solid var(--border);background:#fff;border-radius:20px;padding:6px 14px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--text)}
+  .chip.on{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+  textarea{width:100%;min-height:90px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-family:inherit;font-size:14px;resize:vertical;outline:none}
+  textarea:focus{border-color:var(--green)}
+  .send-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+  .btn{background:var(--green);color:#fff;border:none;border-radius:12px;padding:10px 26px;font-family:inherit;font-size:14.5px;font-weight:800;cursor:pointer}
+  .btn:disabled{opacity:.55;cursor:default}
+  .hint{font-size:12px;color:var(--muted)}
+  .err{color:#b3261e;font-size:13px;margin-top:8px;display:none}
+  .empty-note{text-align:center;color:var(--muted);font-size:13px;padding:26px 10px}
+  .login-box{text-align:center;padding:22px 10px}
+  .login-box p{font-size:14px;color:var(--muted);margin:0 0 14px}
+  footer{margin-top:20px;padding:28px 16px;text-align:center;font-size:12.5px;color:var(--muted);border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="header-inner">
+    <a class="logo" href="/">لقيتها</a>
+    <a class="back-link" href="/">الرئيسية</a>
+  </div>
+</header>
+
+<div class="page-head">
+  <h1>تواصل معنا</h1>
+  <p>فريق دعم لقيتها يرد عليك في أقرب وقت</p>
+</div>
+
+<div class="wrap">
+  <div class="card mail-row">
+    <span class="lbl">البريد الإلكتروني للدعم</span>
+    <a href="mailto:support@laqaytaha.com">support@laqaytaha.com</a>
+  </div>
+
+  <div class="card" id="loginBox" style="display:none">
+    <div class="login-box">
+      <p>سجّل الدخول لفتح محادثة مباشرة مع فريق الدعم ومتابعة الردود.</p>
+      <a class="btn" href="/login?next=/contact">تسجيل الدخول</a>
+    </div>
+  </div>
+
+  <div id="chatBox" style="display:none">
+    <div class="card">
+      <div class="thread" id="thread"><div class="empty-note">جاري التحميل...</div></div>
+    </div>
+    <div class="card">
+      <div class="chips" id="chips">
+        <button type="button" class="chip on" data-c="question">استفسار</button>
+        <button type="button" class="chip" data-c="problem">مشكلة</button>
+        <button type="button" class="chip" data-c="suggestion">اقتراح</button>
+        <button type="button" class="chip" data-c="complaint">شكوى</button>
+      </div>
+      <textarea id="body" maxlength="2000" placeholder="اكتب رسالتك هنا..."></textarea>
+      <div class="send-row">
+        <span class="hint" id="count">0 / 2000</span>
+        <button class="btn" id="sendBtn" type="button">إرسال</button>
+      </div>
+      <div class="err" id="err"></div>
+    </div>
+  </div>
+</div>
+
+<footer>© 2026 لقيتها. جميع الحقوق محفوظة.</footer>
+
+<script>
+const SUPABASE_URL = 'https://tnzxnjivkhyjijyotiog.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_4URJrD-YoQyrogg3YnBFkg_gXVIPder';
+const CAT_LABELS = {question:'استفسار', problem:'مشكلة', suggestion:'اقتراح', complaint:'شكوى'};
+
+let session = null;
+let category = 'question';
+let lastCount = -1;
+
+function readSession(){
+  try{
+    const raw = localStorage.getItem('laqaytaha_session');
+    if(!raw) return null;
+    const s = JSON.parse(raw);
+    if(!s || !s.access_token || !s.user || !s.user.id) return null;
+    return s;
+  }catch(e){ return null; }
+}
+function escapeHtml(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function fmtTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const p = n => String(n).padStart(2,'0');
+  return d.getFullYear() + '/' + p(d.getMonth()+1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+async function rpc(name, body){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+    method:'POST',
+    headers:{
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + session.access_token,
+      'content-type':'application/json'
+    },
+    body: JSON.stringify(body || {})
+  });
+  if(res.status === 401){
+    localStorage.removeItem('laqaytaha_session');
+    window.location.href = '/login?next=/contact';
+    throw new Error('انتهت الجلسة');
+  }
+  const data = await res.json().catch(() => null);
+  if(!res.ok) throw new Error((data && data.message) || 'تعذر تنفيذ الطلب');
+  return data;
+}
+function showErr(msg){
+  const el = document.getElementById('err');
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+async function loadThread(silent){
+  const box = document.getElementById('thread');
+  try{
+    const data = await rpc('support_get_my_thread');
+    const msgs = (data && Array.isArray(data.messages)) ? data.messages : [];
+    if(msgs.length === lastCount) return;
+    lastCount = msgs.length;
+    if(msgs.length === 0){
+      box.innerHTML = '<div class="empty-note">لا توجد رسائل بعد. اكتب رسالتك وسنرد عليك هنا.</div>';
+      return;
+    }
+    box.innerHTML = msgs.map(m => {
+      const staff = !!m.from_staff;
+      const cat = (!staff && m.category && CAT_LABELS[m.category]) ? CAT_LABELS[m.category] + ' · ' : '';
+      return `<div class="msg ${staff ? 'staff' : 'me'}">
+        ${staff ? '<div class="who">فريق دعم لقيتها</div>' : ''}${escapeHtml(m.body)}
+        <div class="meta">${cat}${fmtTime(m.created_at)}</div>
+      </div>`;
+    }).join('');
+    box.scrollTop = box.scrollHeight;
+  }catch(e){
+    if(!silent) box.innerHTML = '<div class="empty-note">تعذر تحميل المحادثة، حاول تحديث الصفحة</div>';
+  }
+}
+
+async function send(){
+  const ta = document.getElementById('body');
+  const btn = document.getElementById('sendBtn');
+  const text = ta.value.trim();
+  showErr('');
+  if(!text){ showErr('اكتب رسالتك أولاً'); return; }
+  btn.disabled = true;
+  try{
+    await rpc('support_send', {p_body: text, p_category: category});
+    ta.value = '';
+    document.getElementById('count').textContent = '0 / 2000';
+    await loadThread(true);
+  }catch(e){
+    showErr(e.message || 'تعذر إرسال الرسالة');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+session = readSession();
+if(!session){
+  document.getElementById('loginBox').style.display = 'block';
+}else{
+  document.getElementById('chatBox').style.display = 'block';
+  document.getElementById('chips').addEventListener('click', e => {
+    const b = e.target.closest('.chip');
+    if(!b) return;
+    category = b.dataset.c;
+    document.querySelectorAll('#chips .chip').forEach(c => c.classList.toggle('on', c === b));
+  });
+  document.getElementById('body').addEventListener('input', e => {
+    document.getElementById('count').textContent = e.target.value.length + ' / 2000';
+  });
+  document.getElementById('sendBtn').addEventListener('click', send);
+  loadThread(false);
+  setInterval(() => { if(!document.hidden) loadThread(true); }, 20000);
+}
+</script>
+
+</body>
+</html>
