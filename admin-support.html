@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>رسائل الدعم — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+<style>
+  .sup-wrap { display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start; }
+  .sup-list { max-height:72vh; overflow:auto; }
+  .sup-row { display:block; width:100%; text-align:right; background:#fff; border:0; border-bottom:1px solid #EEF1F8; padding:13px 18px; cursor:pointer; font-family:inherit; }
+  .sup-row:hover { background:#F7F9FD; }
+  .sup-row.sel { background:#EEF3FF; }
+  .sup-row .top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+  .sup-row .name { font-size:13px; font-weight:800; color:#10275A; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sup-row .time { font-size:10.5px; color:#a7afc4; white-space:nowrap; }
+  .sup-row .prev { font-size:12px; color:#6672A0; margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sup-row .meta { display:flex; gap:6px; align-items:center; margin-top:6px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#E24C4C; flex:none; }
+  .sup-chat { display:flex; flex-direction:column; min-height:60vh; }
+  .sup-msgs { flex:1; padding:18px 22px; overflow:auto; max-height:56vh; display:flex; flex-direction:column; gap:10px; background:#F7F9FD; }
+  .bub { max-width:78%; padding:10px 14px; border-radius:14px; font-size:13px; line-height:1.7; white-space:pre-wrap; word-break:break-word; }
+  .bub.user { align-self:flex-start; background:#fff; border:1px solid #E7EAF3; color:#1E2944; }
+  .bub.staff { align-self:flex-end; background:#265CE8; color:#fff; }
+  .bub .when { display:block; font-size:10px; opacity:.7; margin-top:4px; }
+  .bub .cat { display:inline-block; font-size:10px; font-weight:800; background:#FFF6E9; color:#C98A1A; padding:1px 8px; border-radius:999px; margin-bottom:5px; }
+  .sup-reply { display:flex; gap:10px; padding:14px 18px; border-top:1px solid #EEF1F8; align-items:flex-end; }
+  .sup-reply textarea { flex:1; border:1px solid #E7EAF3; border-radius:10px; padding:10px 12px; font-family:inherit; font-size:13px; min-height:46px; max-height:160px; resize:vertical; }
+  .sup-user { font-size:12px; color:#6672A0; }
+  .back-btn { display:none; }
+  @media (max-width: 860px) {
+    .sup-wrap { grid-template-columns:1fr; }
+    .sup-wrap.viewing .sup-list-panel { display:none; }
+    .sup-wrap:not(.viewing) .sup-chat-panel { display:none; }
+    .back-btn { display:inline-block; }
+    .bub { max-width:90%; }
+  }
+</style>
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+      <div class="sup-wrap" id="supWrap">
+        <div class="panel sup-list-panel">
+          <div class="head">
+            <div class="title">المحادثات</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <select class="filter-select" id="statusFilter">
+                <option value="open">تنتظر رداً</option>
+                <option value="answered">تم الرد</option>
+                <option value="closed">مغلقة</option>
+                <option value="">الكل</option>
+              </select>
+              <button class="btn" onclick="loadThreads()">تحديث</button>
+            </div>
+          </div>
+          <div class="sup-list" id="threadList"><div class="note">جاري التحميل...</div></div>
+        </div>
+
+        <div class="panel sup-chat-panel">
+          <div class="head">
+            <div>
+              <button class="btn back-btn" onclick="closeThread()">→ رجوع</button>
+              <div class="title" id="chatTitle">اختر محادثة</div>
+              <div class="sup-user" id="chatUser"></div>
+            </div>
+            <div style="display:flex; gap:8px;" id="chatActions"></div>
+          </div>
+          <div class="sup-chat">
+            <div class="sup-msgs" id="msgs"><div class="note">اختر محادثة من القائمة لعرض الرسائل والرد عليها.</div></div>
+            <div class="sup-reply" id="replyBox" style="display:none;">
+              <textarea id="replyText" maxlength="2000" placeholder="اكتب ردك… يظهر للمستخدم باسم «فريق دعم لقيتها»"></textarea>
+              <button class="btn primary" id="sendBtn" onclick="sendReply()" style="padding:11px 18px; font-size:12px;">إرسال</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  const CAT_LABEL = { problem:'مشكلة', suggestion:'اقتراح', complaint:'شكوى', question:'استفسار' };
+  const ST_LABEL = { open:'تنتظر رداً', answered:'تم الرد', closed:'مغلقة' };
+  const ST_CLASS = { open:'st-pending', answered:'st-active', closed:'st-other' };
+  let threads = [];
+  let current = null;
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'الآن';
+    if (diff < 3600) return 'منذ ' + Math.floor(diff / 60) + ' د';
+    if (diff < 86400) return 'منذ ' + Math.floor(diff / 3600) + ' س';
+    return d.toLocaleDateString('ar-EG', { timeZone:'Asia/Aden', day:'numeric', month:'short' });
+  }
+  function fmtFull(iso) {
+    return new Date(iso).toLocaleString('ar-EG', { timeZone:'Asia/Aden', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' });
+  }
+  function userName(t) {
+    const p = t.profiles || {};
+    return p.full_name || (p.username ? '@' + p.username : 'مستخدم');
+  }
+
+  async function loadThreads() {
+    const status = document.getElementById('statusFilter').value;
+    const list = document.getElementById('threadList');
+    let q = 'select=id,user_id,status,last_message_at,last_message_preview,last_category,unread_for_staff,profiles(full_name,username)&order=last_message_at.desc&limit=100';
+    if (status) q += '&status=eq.' + status;
+    const { data, error } = await selectRows('support_threads', q);
+    if (error) { list.innerHTML = '<div class="note">تعذر تحميل المحادثات.</div>'; return; }
+    threads = data || [];
+    if (!threads.length) { list.innerHTML = '<div class="note">لا توجد محادثات هنا.</div>'; return; }
+    list.innerHTML = threads.map(t => `
+      <button class="sup-row${current && current.id === t.id ? ' sel' : ''}" onclick="openThread('${t.id}')">
+        <div class="top">
+          <span class="name">${escapeHtml(userName(t))}</span>
+          <span class="time">${fmtTime(t.last_message_at)}</span>
+        </div>
+        <div class="prev">${escapeHtml(t.last_message_preview || '')}</div>
+        <div class="meta">
+          ${t.unread_for_staff ? '<span class="dot" title="غير مقروءة"></span>' : ''}
+          <span class="badge-status ${ST_CLASS[t.status] || 'st-other'}">${ST_LABEL[t.status] || t.status}</span>
+          ${t.last_category ? `<span class="badge-status st-other">${CAT_LABEL[t.last_category] || ''}</span>` : ''}
+        </div>
+      </button>`).join('');
+    refreshSupportBadge();
+  }
+
+  async function openThread(id) {
+    const t = threads.find(x => x.id === id);
+    if (!t) return;
+    current = t;
+    document.getElementById('supWrap').classList.add('viewing');
+    document.getElementById('chatTitle').textContent = userName(t);
+    document.getElementById('replyBox').style.display = 'flex';
+    renderActions();
+    document.getElementById('msgs').innerHTML = '<div class="note">جاري التحميل...</div>';
+
+    const p = t.profiles || {};
+    let info = p.username ? '@' + p.username : '';
+    const priv = await selectRows('profiles_private', `id=eq.${t.user_id}&select=account_number`);
+    const acc = priv.data && priv.data[0] && priv.data[0].account_number;
+    if (acc) info += (info ? ' · ' : '') + 'رقم الحساب ' + acc;
+    document.getElementById('chatUser').textContent = info;
+
+    await loadMessages();
+    if (t.unread_for_staff) {
+      await rpc('support_admin_update', { p_thread_id: t.id, p_mark_read: true });
+      t.unread_for_staff = false;
+    }
+    loadThreads();
+  }
+
+  function renderActions() {
+    const box = document.getElementById('chatActions');
+    if (!current) { box.innerHTML = ''; return; }
+    box.innerHTML = current.status === 'closed'
+      ? `<button class="btn" onclick="setStatus('open')">إعادة فتح</button>`
+      : `<button class="btn danger" onclick="setStatus('closed')">إغلاق المحادثة</button>`;
+  }
+
+  async function loadMessages() {
+    if (!current) return;
+    const box = document.getElementById('msgs');
+    const { data, error } = await selectRows('support_messages',
+      `thread_id=eq.${current.id}&select=id,from_staff,category,body,created_at&order=created_at.asc&limit=500`);
+    if (error) { box.innerHTML = '<div class="note">تعذر تحميل الرسائل.</div>'; return; }
+    if (!data || !data.length) { box.innerHTML = '<div class="note">لا توجد رسائل.</div>'; return; }
+    box.innerHTML = data.map(m => `
+      <div class="bub ${m.from_staff ? 'staff' : 'user'}">${
+        !m.from_staff && m.category ? `<span class="cat">${CAT_LABEL[m.category] || ''}</span><br>` : ''
+      }${escapeHtml(m.body)}<span class="when">${fmtFull(m.created_at)}</span></div>`).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  async function sendReply() {
+    if (!current) return;
+    const ta = document.getElementById('replyText');
+    const body = ta.value.trim();
+    if (!body) return;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    const { error } = await rpc('support_admin_reply', { p_thread_id: current.id, p_body: body });
+    btn.disabled = false;
+    if (error) { alert((error && error.message) || 'تعذر إرسال الرد'); return; }
+    ta.value = '';
+    current.status = 'answered';
+    renderActions();
+    await loadMessages();
+    loadThreads();
+  }
+
+  async function setStatus(status) {
+    if (!current) return;
+    const { error } = await rpc('support_admin_update', { p_thread_id: current.id, p_status: status });
+    if (error) { alert((error && error.message) || 'تعذر تغيير الحالة'); return; }
+    current.status = status;
+    renderActions();
+    loadThreads();
+  }
+
+  function closeThread() {
+    document.getElementById('supWrap').classList.remove('viewing');
+  }
+
+  (async () => {
+    const result = await bootAdminPage('support', 'رسائل الدعم', 'محادثات المستخدمين مع فريق دعم لقيتها');
+    if (!result) return;
+    document.getElementById('statusFilter').addEventListener('change', loadThreads);
+    await loadThreads();
+    // تحديث تلقائي للقائمة والمحادثة المفتوحة
+    setInterval(() => { loadThreads(); if (current) loadMessages(); }, 30000);
+  })();
+</script>
+</body>
+</html>
