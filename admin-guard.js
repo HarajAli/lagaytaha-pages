@@ -85,6 +85,7 @@ const NAV_ITEMS = [
   { key: 'ads',          href: './admin-ads.html',          icon: '🗂️', label: 'الإعلانات' },
   { key: 'users',        href: './admin-users.html',        icon: '👥', label: 'المستخدمون' },
   { key: 'reports',      href: './admin-reports.html',      icon: '🚩', label: 'البلاغات' },
+  { key: 'support',      href: './admin-support.html',      icon: '💬', label: 'رسائل الدعم' },
   { key: 'verification', href: './admin-verification.html', icon: '⭐', label: 'التوثيق والتقييمات' },
   { key: 'points',       href: './admin-points.html',       icon: '🪙', label: 'النقاط والباقات' },
   { key: 'settings',     href: './admin-settings.html',     icon: '⚙️', label: 'الإعدادات' },
@@ -92,7 +93,7 @@ const NAV_ITEMS = [
 
 function renderSidebar(activeKey) {
   const items = NAV_ITEMS.map(it =>
-    `<a href="${it.href}"${it.key === activeKey ? ' class="active"' : ''}>${it.icon} ${it.label}</a>`
+    `<a href="${it.href}" data-nav="${it.key}"${it.key === activeKey ? ' class="active"' : ''}>${it.icon} ${it.label}</a>`
   ).join('');
   return `
     <div class="sidebar">
@@ -202,5 +203,24 @@ async function bootAdminPage(activeKey, title, subtitle) {
   document.getElementById('accessDenied').style.display = 'none';
   document.getElementById('app').style.display = 'flex';
 
+  // عدد محادثات الدعم التي تنتظر رداً — يظهر كرقم أحمر بجانب «رسائل الدعم».
+  refreshSupportBadge();
+
   return result;
+}
+
+async function refreshSupportBadge() {
+  try {
+    const { count } = await selectCount('support_threads', '&unread_for_staff=eq.true');
+    const link = document.querySelector('.sidebar .nav a[data-nav="support"]');
+    if (!link) return;
+    link.querySelector('.nav-count')?.remove();
+    if (count && count > 0) {
+      const b = document.createElement('span');
+      b.className = 'nav-count';
+      b.textContent = count > 99 ? '99+' : String(count);
+      b.style.cssText = 'background:#E24C4C;color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:2px 7px;margin-inline-start:6px;';
+      link.appendChild(b);
+    }
+  } catch (e) { /* العدّاد إضافي — لا يعطّل الصفحة */ }
 }
