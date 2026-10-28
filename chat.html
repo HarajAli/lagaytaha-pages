@@ -98,6 +98,11 @@ let isSending = false;
 let renderedIds = new Set();
 let signedUrlCache = new Map(); // path -> {url, expiresAt}
 let realtimeChannel = null;
+// كل المحادثات بين نفس الشخصين تُعرض كمحادثة واحدة (مثل التطبيق).
+// الأولى هي الأحدث نشاطاً وإليها تُرسل الرسائل الجديدة.
+let pairIds = [];
+let sendId = null;
+const adCache = new Map(); // ad_id -> {title, price, currency}
 
 function checkAuth(){
   const raw = localStorage.getItem('laqaytaha_session');
@@ -178,6 +183,17 @@ async function renderMessage(msg){
   const wrap = document.createElement('div');
   wrap.className = 'msg-bubble ' + (isOwn ? 'msg-own' : 'msg-other');
 
+  if(msg.ad_share_id){
+    const a = document.createElement('a');
+    a.href = '/ad/' + encodeURIComponent(msg.ad_share_id);
+    a.className = 'msg-ad-card';
+    a.style.cssText = 'display:block;text-decoration:none;color:inherit;border:1px solid rgba(0,0,0,.08);border-radius:10px;padding:8px 10px;background:rgba(255,255,255,.6);';
+    const ad = await getAd(msg.ad_share_id);
+    a.innerHTML = '<div style="font-size:11px;opacity:.7;">🏷️ إعلان</div><div style="font-weight:700;">' +
+      escapeHtml(ad ? ad.title : 'إعلان غير متاح') + '</div>' +
+      (ad && ad.price ? '<div style="font-size:12px;opacity:.8;">' + Number(ad.price).toLocaleString('en-US') + ' ' + escapeHtml(ad.currency || '') + '</div>' : '');
+    wrap.appendChild(a);
+  }
   if(msg.content){
     const p = document.createElement('div');
     p.textContent = msg.content;
@@ -204,9 +220,24 @@ async function renderMessage(msg){
   }
 }
 
+async function getAd(id){
+  if(adCache.has(id)) return adCache.get(id);
+  try{
+    const res = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/ads?id=eq.${id}&select=title,price,currency`,
+      {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 3);
+    const rows = res.ok ? await res.json() : [];
+    adCache.set(id, rows[0] || null);
+  }catch(e){ adCache.set(id, null); }
+  return adCache.get(id);
+}
+
+function idsFilter(){
+  return 'in.(' + (pairIds.length ? pairIds : [conversationId]).join(',') + ')';
+}
+
 async function markConversationRead(){
   try{
-    await fetchWithRetry(`${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&sender_id=neq.${session.user.id}&is_read=eq.false`, {
+    await fetchWithRetry(`${SUPABASE_URL}/rest/v1/messages?conversation_id=${idsFilter()}&sender_id=neq.${session.user.id}&is_read=eq.false`, {
       method: 'PATCH',
       headers:{
         apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
@@ -244,6 +275,19 @@ async function loadChat(){
     }
     otherUserId = conv.buyer_id === session.user.id ? conv.seller_id : conv.buyer_id;
 
+    // كل محادثات هذين الشخصين (الأحدث نشاطاً أولاً)
+    pairIds = [conversationId];
+    try{
+      const pairRes = await fetchWithRetry(`${SUPABASE_URL}/rest/v1/rpc/chat_pair_ids`, {
+        method:'POST',
+        headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token, 'content-type':'application/json'},
+        body: JSON.stringify({p_conversation_id: conversationId})
+      }, 3);
+      const ids = pairRes.ok ? await pairRes.json() : null;
+      if(Array.isArray(ids) && ids.length) pairIds = ids;
+    }catch(e){ /* نكمل بالمحادثة الحالية فقط */ }
+    sendId = pairIds[0] || conversationId;
+
     // 2) بيانات الطرف الآخر
     const profRes = await fetchWithRetry(
       `${SUPABASE_URL}/rest/v1/profiles?id=eq.${otherUserId}&select=full_name,avatar_url`,
@@ -268,7 +312,7 @@ async function loadChat(){
 
     // 4) الرسائل بترتيب زمني
     const msgRes = await fetchWithRetry(
-      `${SUPABASE_URL}/rest/v1/messages?conversation_id=eq.${conversationId}&select=id,sender_id,content,image_url,created_at&order=created_at.asc`,
+      `${SUPABASE_URL}/rest/v1/messages?conversation_id=${idsFilter()}&select=id,sender_id,content,image_url,ad_share_id,created_at&order=created_at.asc`,
       {headers:{apikey:SUPABASE_ANON_KEY, Authorization:'Bearer '+session.access_token}}, 5
     );
     if(!msgRes.ok) throw new Error('تعذر تحميل الرسائل');
@@ -306,7 +350,7 @@ function subscribeRealtime(){
     .channel('chat-' + conversationId)
     .on('postgres_changes', {
       event: 'INSERT', schema: 'public', table: 'messages',
-      filter: 'conversation_id=eq.' + conversationId
+      filter: 'conversation_id=' + idsFilter()
     }, (payload) => {
       // إزالة رسالة "لا توجد رسائل بعد" لو كانت ظاهرة
       const emptyNote = document.querySelector('#messagesInner .empty-note');
@@ -339,7 +383,7 @@ async function sendMessage(){
         apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
         'content-type': 'application/json', Prefer: 'return=representation'
       },
-      body: JSON.stringify({conversation_id: conversationId, sender_id: session.user.id, content})
+      body: JSON.stringify({conversation_id: sendId || conversationId, sender_id: session.user.id, content})
     }, 3);
     const data = await res.json();
     if(!res.ok){
@@ -350,7 +394,7 @@ async function sendMessage(){
     await renderMessage(Array.isArray(data) ? data[0] : data);
 
     // تحديث last_message_at بالمحادثة (نفس خطوة التطبيق بعد كل رسالة)
-    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
+    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${sendId || conversationId}`, {
       method: 'PATCH',
       headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type':'application/json'},
       body: JSON.stringify({last_message_at: new Date().toISOString()})
@@ -400,7 +444,7 @@ document.getElementById('imageInput').addEventListener('change', async function(
 
   try{
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const path = `${conversationId}/${session.user.id}/${Date.now()}.${ext}`;
+    const path = `${sendId || conversationId}/${session.user.id}/${Date.now()}.${ext}`;
 
     const upRes = await fetchWithRetry(`${SUPABASE_URL}/storage/v1/object/chat-images/${path}`, {
       method: 'POST',
@@ -418,7 +462,7 @@ document.getElementById('imageInput').addEventListener('change', async function(
         apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token,
         'content-type': 'application/json', Prefer: 'return=representation'
       },
-      body: JSON.stringify({conversation_id: conversationId, sender_id: session.user.id, image_url: path})
+      body: JSON.stringify({conversation_id: sendId || conversationId, sender_id: session.user.id, image_url: path})
     }, 3);
     const data = await res.json();
     if(!res.ok){
@@ -428,7 +472,7 @@ document.getElementById('imageInput').addEventListener('change', async function(
     if(emptyNote) emptyNote.remove();
     await renderMessage(Array.isArray(data) ? data[0] : data);
 
-    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${conversationId}`, {
+    fetchWithRetry(`${SUPABASE_URL}/rest/v1/conversations?id=eq.${sendId || conversationId}`, {
       method: 'PATCH',
       headers:{apikey: SUPABASE_ANON_KEY, Authorization: 'Bearer ' + session.access_token, 'content-type':'application/json'},
       body: JSON.stringify({last_message_at: new Date().toISOString()})

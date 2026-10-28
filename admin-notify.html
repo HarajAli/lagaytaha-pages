@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>الإشعارات والتذكيرات — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+<style>
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; padding:14px 18px 0; }
+  .tab { border:1px solid #E7EAF3; background:#fff; color:#4A5578; border-radius:999px; padding:7px 14px; font-family:inherit; font-size:12.5px; font-weight:700; cursor:pointer; }
+  .tab.on { background:#265CE8; border-color:#265CE8; color:#fff; }
+  .tab .n { opacity:.75; font-weight:600; margin-inline-start:4px; }
+  .filters { display:flex; gap:8px; flex-wrap:wrap; padding:12px 18px; align-items:center; }
+  .filters input, .filters select { border:1px solid #E7EAF3; border-radius:10px; padding:8px 10px; font-family:inherit; font-size:12.5px; background:#fff; }
+  .filters input { min-width:180px; }
+  .sel-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; padding:10px 18px; background:#F7F9FD; border-top:1px solid #EEF1F8; border-bottom:1px solid #EEF1F8; font-size:12.5px; color:#4A5578; }
+  .sel-bar b { color:#10275A; }
+  .users { max-height:460px; overflow:auto; }
+  .users table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  .users th { position:sticky; top:0; background:#fff; text-align:right; color:#8A93AE; font-weight:700; padding:9px 10px; border-bottom:1px solid #EEF1F8; z-index:1; }
+  .users td { padding:9px 10px; border-bottom:1px solid #F2F4F9; color:#1E2944; vertical-align:middle; }
+  .users tr.dim td { color:#A7AFC4; }
+  .users tr:hover td { background:#FAFBFE; }
+  .uname { font-weight:700; color:#10275A; }
+  .uname small { display:block; color:#8A93AE; font-weight:600; direction:ltr; text-align:right; }
+  .pill { display:inline-block; font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; white-space:nowrap; }
+  .pill.ok { background:#E9F8EF; color:#1C8A4A; }
+  .pill.no { background:#F2F4F9; color:#8A93AE; }
+  .pill.wait { background:#FFF6E9; color:#C98A1A; }
+  .compose { padding:16px 18px; display:grid; gap:10px; }
+  .compose label { font-size:12px; font-weight:700; color:#4A5578; }
+  .compose input, .compose textarea, .compose select { width:100%; box-sizing:border-box; border:1px solid #E7EAF3; border-radius:10px; padding:10px 12px; font-family:inherit; font-size:13px; background:#fff; }
+  .compose textarea { min-height:70px; resize:vertical; }
+  .cnt { font-size:11px; color:#A7AFC4; text-align:left; }
+  .preview { border:1px solid #E7EAF3; border-radius:14px; padding:12px 14px; background:#F7F9FD; display:flex; gap:10px; align-items:flex-start; }
+  .preview .ico { width:34px; height:34px; border-radius:9px; background:#10275A; color:#fff; display:flex; align-items:center; justify-content:center; font-size:16px; flex:none; }
+  .preview .t { font-weight:800; font-size:13px; color:#10275A; }
+  .preview .b { font-size:12.5px; color:#4A5578; margin-top:2px; }
+  .row2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .grid-2 { display:grid; grid-template-columns:1.35fr 1fr; gap:20px; align-items:start; }
+  .tpl-item { padding:12px 18px; border-bottom:1px solid #F2F4F9; display:flex; gap:10px; align-items:flex-start; justify-content:space-between; }
+  .tpl-item .t { font-weight:800; font-size:13px; color:#10275A; }
+  .tpl-item .b { font-size:12px; color:#6672A0; margin-top:3px; }
+  .tpl-item .seg { font-size:10.5px; font-weight:800; color:#C98A1A; background:#FFF6E9; padding:1px 8px; border-radius:999px; }
+  .switch { display:flex; align-items:center; gap:10px; font-size:13px; font-weight:700; color:#10275A; }
+  .switch input { width:18px; height:18px; }
+  .hist-item { padding:11px 18px; border-bottom:1px solid #F2F4F9; font-size:12.5px; }
+  .hist-item .t { font-weight:800; color:#10275A; }
+  .hist-item .m { color:#8A93AE; font-size:11.5px; margin-top:3px; }
+  .msg-ok { color:#1C8A4A; font-size:12.5px; font-weight:700; }
+  .msg-err { color:#C0392B; font-size:12.5px; font-weight:700; }
+  @media (max-width: 980px) { .grid-2 { grid-template-columns:1fr; } .row2 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+
+    <div class="content">
+      <div class="grid-2">
+        <!-- اختيار المستخدمين -->
+        <div class="panel">
+          <div class="head">
+            <div class="title">اختيار المستخدمين</div>
+            <button class="btn" onclick="loadAudience()">تحديث</button>
+          </div>
+          <div class="tabs" id="segTabs">
+            <button class="tab on" data-seg="no_ads">ما نشروا</button>
+            <button class="tab" data-seg="with_ads">نشروا</button>
+            <button class="tab" data-seg="inactive">غير نشطين (14 يوم)</button>
+            <button class="tab" data-seg="all">الكل</button>
+          </div>
+          <div class="filters">
+            <input id="fSearch" placeholder="بحث بالاسم أو اسم المستخدم">
+            <select id="fGov"><option value="">كل المحافظات</option></select>
+            <select id="fDays">
+              <option value="">أي تاريخ تسجيل</option>
+              <option value="7">سجّلوا آخر 7 أيام</option>
+              <option value="30">سجّلوا آخر 30 يوم</option>
+              <option value="90">سجّلوا آخر 90 يوم</option>
+            </select>
+          </div>
+          <div class="sel-bar">
+            <div>المحدد: <b id="selCount">0</b> · يوصلهم إشعار على الجوال: <b id="selReach">0</b></div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn" onclick="selectAll(true)">تحديد كل من يوصله إشعار</button>
+              <button class="btn" onclick="selectAll(false)">إلغاء التحديد</button>
+            </div>
+          </div>
+          <div class="users" id="usersBox"><div class="note">جاري التحميل...</div></div>
+        </div>
+
+        <!-- كتابة الرسالة -->
+        <div class="panel">
+          <div class="head"><div class="title">الرسالة</div></div>
+          <div class="compose">
+            <div>
+              <label>نص جاهز</label>
+              <select id="tplSelect"><option value="">— اختر نصاً جاهزاً أو اكتب بنفسك —</option></select>
+            </div>
+            <div>
+              <label>العنوان</label>
+              <input id="mTitle" maxlength="80">
+              <div class="cnt"><span id="tCount">0</span>/80</div>
+            </div>
+            <div>
+              <label>النص</label>
+              <textarea id="mBody" maxlength="250"></textarea>
+              <div class="cnt"><span id="bCount">0</span>/250</div>
+            </div>
+            <div>
+              <label>عند الضغط على الإشعار (في النسخة الجديدة من التطبيق)</label>
+              <select id="mAction">
+                <option value="post_ad">يفتح «إضافة إعلان»</option>
+                <option value="buy_requests">يفتح «طلبات الشراء»</option>
+                <option value="home">يفتح الرئيسية</option>
+              </select>
+            </div>
+            <div>
+              <label>المعاينة</label>
+              <div class="preview">
+                <div class="ico">🔍</div>
+                <div><div class="t" id="pvT">العنوان</div><div class="b" id="pvB">النص</div></div>
+              </div>
+            </div>
+            <button class="btn primary" id="sendBtn" onclick="sendNow()" style="padding:12px;">إرسال</button>
+            <div id="sendMsg"></div>
+            <div class="note" style="padding:0; text-align:right;">حماية من الإزعاج: من وصله تذكير خلال آخر <b id="cdLabel">3</b> أيام يتم تخطيه تلقائياً.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:20px;">
+        <!-- النصوص الجاهزة -->
+        <div class="panel">
+          <div class="head">
+            <div class="title">النصوص الجاهزة</div>
+            <button class="btn" onclick="newTemplate()">+ نص جديد</button>
+          </div>
+          <div id="tplEditor" style="display:none;" class="compose">
+            <div class="row2">
+              <div>
+                <label>الفئة</label>
+                <select id="eSeg">
+                  <option value="no_ads">ما نشروا</option>
+                  <option value="with_ads">نشروا</option>
+                  <option value="inactive">غير نشطين</option>
+                  <option value="general">عام</option>
+                </select>
+              </div>
+              <div>
+                <label>الترتيب</label>
+                <input id="eSort" type="number" value="0">
+              </div>
+            </div>
+            <div><label>العنوان</label><input id="eTitle" maxlength="80"></div>
+            <div><label>النص</label><textarea id="eBody" maxlength="250"></textarea></div>
+            <div style="display:flex; gap:8px;">
+              <button class="btn primary" onclick="saveTemplate()">حفظ</button>
+              <button class="btn" onclick="closeEditor()">إلغاء</button>
+            </div>
+            <div id="eMsg"></div>
+          </div>
+          <div id="tplList"><div class="note">جاري التحميل...</div></div>
+        </div>
+
+        <div>
+          <!-- التذكير التلقائي -->
+          <div class="panel">
+            <div class="head"><div class="title">التذكير التلقائي</div></div>
+            <div class="compose">
+              <label class="switch"><input type="checkbox" id="aEnabled"> تشغيل التذكير التلقائي</label>
+              <div class="note" style="padding:0; text-align:right;">يُرسل مرة واحدة فقط لكل مستخدم سجّل ولم ينشر أي إعلان، بعد عدد الأيام المحدد (للمسجلين خلال آخر 30 يوماً).</div>
+              <div class="row2">
+                <div><label>بعد كم يوم من التسجيل</label><input id="aDays" type="number" min="1" max="30"></div>
+                <div><label>الحد الأدنى بين تذكيرين (أيام)</label><input id="aCooldown" type="number" min="1" max="30"></div>
+              </div>
+              <div><label>العنوان</label><input id="aTitle" maxlength="80"></div>
+              <div><label>النص</label><textarea id="aBody" maxlength="250"></textarea></div>
+              <button class="btn primary" onclick="saveAuto()">حفظ الإعدادات</button>
+              <div id="aMsg"></div>
+            </div>
+          </div>
+
+          <!-- السجل -->
+          <div class="panel" style="margin-top:20px;">
+            <div class="head"><div class="title">سجل الإرسال</div></div>
+            <div id="histList"><div class="note">جاري التحميل...</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  const SEG_LABEL = { no_ads:'ما نشروا', with_ads:'نشروا', inactive:'غير نشطين', general:'عام', all:'الكل' };
+  const ACTION_LABEL = { post_ad:'إضافة إعلان', buy_requests:'طلبات الشراء', home:'الرئيسية', none:'—' };
+  let segment = 'no_ads';
+  let audience = [];
+  const selected = new Set();
+  let templates = [];
+  let editingId = null;
+  let me = null;
+  let searchTimer = null;
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('ar-EG', { timeZone:'Asia/Aden', day:'numeric', month:'short', year:'numeric' });
+  }
+  function fmtAgo(iso) {
+    if (!iso) return 'لم يفتح التطبيق';
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days <= 0) return 'اليوم';
+    if (days === 1) return 'أمس';
+    return 'قبل ' + days + ' يوم';
+  }
+  function setMsg(id, text, ok) {
+    const el = document.getElementById(id);
+    el.className = ok ? 'msg-ok' : 'msg-err';
+    el.textContent = text || '';
+  }
+  function errText(error) {
+    return (error && (error.message || error.hint)) || 'حدث خطأ، حاول مرة أخرى';
+  }
+
+  // ===== المستخدمون =====
+  async function loadGovernorates() {
+    const { data } = await selectRows('governorates', 'select=id,name_ar&order=id');
+    const sel = document.getElementById('fGov');
+    (data || []).forEach(g => {
+      const o = document.createElement('option');
+      o.value = g.id; o.textContent = g.name_ar; sel.appendChild(o);
+    });
+  }
+
+  async function loadAudience() {
+    const box = document.getElementById('usersBox');
+    box.innerHTML = '<div class="note">جاري التحميل...</div>';
+    const gov = document.getElementById('fGov').value;
+    const days = document.getElementById('fDays').value;
+    const q = document.getElementById('fSearch').value.trim();
+    const { data, error } = await rpc('admin_reminder_audience', {
+      p_segment: segment,
+      p_governorate_id: gov ? Number(gov) : null,
+      p_registered_within_days: days ? Number(days) : null,
+      p_search: q || null,
+    });
+    if (error) { box.innerHTML = '<div class="note">تعذر تحميل المستخدمين: ' + escapeHtml(errText(error)) + '</div>'; return; }
+    audience = data || [];
+    const ids = new Set(audience.map(u => u.user_id));
+    [...selected].forEach(id => { if (!ids.has(id)) selected.delete(id); });
+    renderAudience();
+  }
+
+  function renderAudience() {
+    const box = document.getElementById('usersBox');
+    if (!audience.length) { box.innerHTML = '<div class="note">لا يوجد مستخدمون بهذه الفلاتر.</div>'; updateCounts(); return; }
+    box.innerHTML = `<table>
+      <thead><tr><th style="width:30px;"></th><th>المستخدم</th><th>التسجيل</th><th>الإعلانات</th><th>آخر دخول</th><th>الإشعار</th></tr></thead>
+      <tbody>${audience.map(u => {
+        const dim = !u.reachable || u.in_cooldown;
+        const status = u.in_cooldown
+          ? `<span class="pill wait" title="آخر تذكير ${fmtDate(u.last_reminder_at)}">وصله تذكير قريباً</span>`
+          : (u.reachable ? '<span class="pill ok">🔔 يوصله</span>' : '<span class="pill no">🔕 ما يوصله</span>');
+        return `<tr class="${dim ? 'dim' : ''}">
+          <td><input type="checkbox" ${selected.has(u.user_id) ? 'checked' : ''} ${u.in_cooldown ? 'disabled' : ''} onchange="toggleUser('${u.user_id}', this.checked)"></td>
+          <td><div class="uname">${escapeHtml(u.full_name || 'بدون اسم')}${u.username ? `<small>@${escapeHtml(u.username)}</small>` : ''}</div>${u.governorate ? `<div style="font-size:11px;color:#8A93AE;">${escapeHtml(u.governorate)}</div>` : ''}</td>
+          <td>${fmtDate(u.registered_at)}</td>
+          <td>${u.ads_count}</td>
+          <td>${fmtAgo(u.last_seen_at)}</td>
+          <td>${status}</td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+    updateCounts();
+  }
+
+  function toggleUser(id, on) {
+    if (on) selected.add(id); else selected.delete(id);
+    updateCounts();
+  }
+  function selectAll(on) {
+    if (!on) { selected.clear(); }
+    else audience.forEach(u => { if (u.reachable && !u.in_cooldown) selected.add(u.user_id); });
+    renderAudience();
+  }
+  function updateCounts() {
+    const map = new Map(audience.map(u => [u.user_id, u]));
+    let reach = 0;
+    selected.forEach(id => { if (map.get(id)?.reachable) reach++; });
+    document.getElementById('selCount').textContent = selected.size;
+    document.getElementById('selReach').textContent = reach;
+    const btn = document.getElementById('sendBtn');
+    btn.textContent = selected.size ? `إرسال إلى ${selected.size} محدد` : 'إرسال';
+  }
+
+  // ===== الرسالة =====
+  function updatePreview() {
+    const t = document.getElementById('mTitle').value;
+    const b = document.getElementById('mBody').value;
+    document.getElementById('tCount').textContent = t.length;
+    document.getElementById('bCount').textContent = b.length;
+    document.getElementById('pvT').textContent = t || 'العنوان';
+    document.getElementById('pvB').textContent = b || 'النص';
+  }
+
+  function fillTemplateSelect() {
+    const sel = document.getElementById('tplSelect');
+    const seg = segment === 'all' ? null : segment;
+    const list = templates.filter(t => !seg || t.segment === seg || t.segment === 'general');
+    sel.innerHTML = '<option value="">— اختر نصاً جاهزاً أو اكتب بنفسك —</option>' +
+      list.map(t => `<option value="${t.id}">${escapeHtml(t.title)}</option>`).join('');
+  }
+
+  async function sendNow() {
+    const title = document.getElementById('mTitle').value.trim();
+    const body = document.getElementById('mBody').value.trim();
+    const action = document.getElementById('mAction').value;
+    if (!selected.size) { setMsg('sendMsg', 'اختر مستخدماً واحداً على الأقل', false); return; }
+    if (!title || !body) { setMsg('sendMsg', 'اكتب العنوان والنص', false); return; }
+    if (!confirm(`سيتم إرسال الإشعار إلى ${selected.size} مستخدم. متأكد؟`)) return;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    setMsg('sendMsg', 'جاري الإرسال...', true);
+    const { data, error } = await rpc('admin_send_reminder', {
+      p_user_ids: [...selected], p_title: title, p_body: body, p_action: action, p_segment: segment,
+    });
+    btn.disabled = false;
+    if (error) { setMsg('sendMsg', errText(error), false); return; }
+    setMsg('sendMsg', `✅ تم الإرسال إلى ${data.sent} مستخدم (يوصلهم على الجوال: ${data.push_reachable})` +
+      (data.skipped ? ` — تم تخطي ${data.skipped} (وصلهم تذكير قريباً)` : ''), true);
+    selected.clear();
+    await Promise.all([loadAudience(), loadHistory()]);
+  }
+
+  // ===== النصوص الجاهزة =====
+  async function loadTemplates() {
+    const { data, error } = await selectRows('admin_message_templates', 'select=*&order=segment,sort_order,id');
+    const box = document.getElementById('tplList');
+    if (error) { box.innerHTML = '<div class="note">تعذر تحميل النصوص.</div>'; return; }
+    templates = data || [];
+    fillTemplateSelect();
+    if (!templates.length) { box.innerHTML = '<div class="note">لا توجد نصوص. أضف نصاً جديداً.</div>'; return; }
+    box.innerHTML = templates.map(t => `
+      <div class="tpl-item">
+        <div>
+          <span class="seg">${SEG_LABEL[t.segment] || t.segment}</span>
+          <div class="t" style="margin-top:5px;">${escapeHtml(t.title)}</div>
+          <div class="b">${escapeHtml(t.body)}</div>
+        </div>
+        <div style="display:flex; gap:6px; flex:none;">
+          <button class="btn" onclick="editTemplate(${t.id})">تعديل</button>
+          <button class="btn danger" onclick="deleteTemplate(${t.id})">حذف</button>
+        </div>
+      </div>`).join('');
+  }
+  function newTemplate() {
+    editingId = null;
+    document.getElementById('eSeg').value = segment === 'all' ? 'general' : segment;
+    document.getElementById('eSort').value = 0;
+    document.getElementById('eTitle').value = '';
+    document.getElementById('eBody').value = '';
+    setMsg('eMsg', '', true);
+    document.getElementById('tplEditor').style.display = 'grid';
+  }
+  function editTemplate(id) {
+    const t = templates.find(x => x.id === id); if (!t) return;
+    editingId = id;
+    document.getElementById('eSeg').value = t.segment;
+    document.getElementById('eSort').value = t.sort_order;
+    document.getElementById('eTitle').value = t.title;
+    document.getElementById('eBody').value = t.body;
+    setMsg('eMsg', '', true);
+    document.getElementById('tplEditor').style.display = 'grid';
+    document.getElementById('tplEditor').scrollIntoView({ behavior:'smooth', block:'center' });
+  }
+  function closeEditor() { document.getElementById('tplEditor').style.display = 'none'; editingId = null; }
+  async function saveTemplate() {
+    const row = {
+      segment: document.getElementById('eSeg').value,
+      sort_order: Number(document.getElementById('eSort').value) || 0,
+      title: document.getElementById('eTitle').value.trim(),
+      body: document.getElementById('eBody').value.trim(),
+      updated_at: new Date().toISOString(),
+    };
+    if (!row.title || !row.body) { setMsg('eMsg', 'اكتب العنوان والنص', false); return; }
+    const res = editingId
+      ? await apiFetch('/rest/v1/admin_message_templates?id=eq.' + editingId, { method:'PATCH', body: JSON.stringify(row) })
+      : await apiFetch('/rest/v1/admin_message_templates', { method:'POST', body: JSON.stringify(row) });
+    if (!res.ok) { setMsg('eMsg', 'تعذر الحفظ', false); return; }
+    closeEditor();
+    await loadTemplates();
+  }
+  async function deleteTemplate(id) {
+    if (!confirm('حذف هذا النص؟')) return;
+    const res = await apiFetch('/rest/v1/admin_message_templates?id=eq.' + id, { method:'DELETE' });
+    if (!res.ok) { alert('تعذر الحذف'); return; }
+    await loadTemplates();
+  }
+
+  // ===== التذكير التلقائي =====
+  const AUTO_KEYS = ['auto_reminder_enabled','auto_reminder_after_days','auto_reminder_title','auto_reminder_body','reminder_cooldown_days'];
+  async function loadAuto() {
+    const { data } = await selectRows('app_settings', 'select=key,value&key=in.(' + AUTO_KEYS.join(',') + ')');
+    const s = {}; (data || []).forEach(r => s[r.key] = r.value);
+    document.getElementById('aEnabled').checked = s.auto_reminder_enabled === 'true';
+    document.getElementById('aDays').value = s.auto_reminder_after_days || '1';
+    document.getElementById('aCooldown').value = s.reminder_cooldown_days || '3';
+    document.getElementById('aTitle').value = s.auto_reminder_title || '';
+    document.getElementById('aBody').value = s.auto_reminder_body || '';
+    document.getElementById('cdLabel').textContent = s.reminder_cooldown_days || '3';
+  }
+  async function saveAuto() {
+    if (me && me.role === 'moderator') { setMsg('aMsg', 'تعديل الإعدادات للمدير فقط', false); return; }
+    const days = Math.min(30, Math.max(1, parseInt(document.getElementById('aDays').value, 10) || 1));
+    const cd = Math.min(30, Math.max(1, parseInt(document.getElementById('aCooldown').value, 10) || 3));
+    const title = document.getElementById('aTitle').value.trim();
+    const body = document.getElementById('aBody').value.trim();
+    const enabled = document.getElementById('aEnabled').checked;
+    if (enabled && (!title || !body)) { setMsg('aMsg', 'اكتب العنوان والنص قبل التشغيل', false); return; }
+    const pairs = [
+      ['auto_reminder_enabled', enabled ? 'true' : 'false'],
+      ['auto_reminder_after_days', String(days)],
+      ['reminder_cooldown_days', String(cd)],
+      ['auto_reminder_title', title],
+      ['auto_reminder_body', body],
+    ];
+    for (const [k, v] of pairs) {
+      const { error } = await rpc('admin_set_app_setting', { p_key: k, p_value: v });
+      if (error) { setMsg('aMsg', 'تعذر الحفظ: ' + errText(error), false); return; }
+    }
+    setMsg('aMsg', '✅ تم الحفظ' + (enabled ? ' — التذكير التلقائي يعمل كل ساعة' : ''), true);
+    loadAuto();
+  }
+
+  // ===== السجل =====
+  async function loadHistory() {
+    const { data, error } = await selectRows('admin_campaigns', 'select=*,profiles(full_name)&order=created_at.desc&limit=30');
+    const box = document.getElementById('histList');
+    if (error) { box.innerHTML = '<div class="note">تعذر تحميل السجل.</div>'; return; }
+    if (!data || !data.length) { box.innerHTML = '<div class="note">لم يُرسل شيء بعد.</div>'; return; }
+    box.innerHTML = data.map(c => `
+      <div class="hist-item">
+        <div class="t">${c.kind === 'auto' ? '🤖 ' : '✉️ '}${escapeHtml(c.title)}</div>
+        <div class="m">${new Date(c.created_at).toLocaleString('ar-EG', { timeZone:'Asia/Aden', day:'numeric', month:'short', hour:'numeric', minute:'2-digit' })}
+          · ${c.kind === 'auto' ? 'تلقائي' : escapeHtml(c.profiles?.full_name || 'الإدارة')}
+          · ${SEG_LABEL[c.segment] || '—'}
+          · وصل ${c.sent_count} (على الجوال ${c.reachable_count})${c.skipped_count ? ` · تخطي ${c.skipped_count}` : ''}
+          · يفتح: ${ACTION_LABEL[c.action] || '—'}</div>
+      </div>`).join('');
+  }
+
+  // ===== تهيئة =====
+  (async () => {
+    me = await bootAdminPage('notify', 'الإشعارات والتذكيرات', 'أرسل تذكيراً لمستخدمين تختارهم أو فعّل التذكير التلقائي');
+    if (!me) return;
+    document.querySelectorAll('#segTabs .tab').forEach(b => b.addEventListener('click', () => {
+      document.querySelectorAll('#segTabs .tab').forEach(x => x.classList.toggle('on', x === b));
+      segment = b.dataset.seg;
+      selected.clear();
+      fillTemplateSelect();
+      loadAudience();
+    }));
+    document.getElementById('fGov').addEventListener('change', loadAudience);
+    document.getElementById('fDays').addEventListener('change', loadAudience);
+    document.getElementById('fSearch').addEventListener('input', () => {
+      clearTimeout(searchTimer); searchTimer = setTimeout(loadAudience, 350);
+    });
+    document.getElementById('mTitle').addEventListener('input', updatePreview);
+    document.getElementById('mBody').addEventListener('input', updatePreview);
+    document.getElementById('tplSelect').addEventListener('change', e => {
+      const t = templates.find(x => String(x.id) === e.target.value);
+      if (!t) return;
+      document.getElementById('mTitle').value = t.title;
+      document.getElementById('mBody').value = t.body;
+      updatePreview();
+    });
+    updatePreview();
+    await Promise.all([loadGovernorates(), loadTemplates(), loadAuto(), loadHistory()]);
+    await loadAudience();
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>سجل العمليات — إدارة لقيتها</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="./admin-common.css" rel="stylesheet">
+<style>
+  .filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .log-item { display:flex; gap:12px; padding:13px 18px; border-bottom:1px solid #F2F4F9; align-items:flex-start; }
+  .log-item .ico { width:34px; height:34px; border-radius:10px; background:#EEF3FF; display:flex; align-items:center; justify-content:center; font-size:16px; flex:none; }
+  .log-item .txt { font-size:13px; color:#1E2944; line-height:1.7; }
+  .log-item .txt b { color:#10275A; }
+  .log-item .meta { font-size:11.5px; color:#8A93AE; margin-top:2px; }
+  .chg { display:inline-block; font-size:11.5px; background:#F7F9FD; border:1px solid #EEF1F8; border-radius:8px; padding:1px 8px; margin:3px 0 0 4px; color:#4A5578; }
+  .role-tag { font-size:10.5px; font-weight:800; padding:1px 8px; border-radius:999px; background:#FFF6E9; color:#C98A1A; margin-inline-start:6px; }
+</style>
+</head>
+<body>
+
+<div id="accessDenied">جاري التحقق من الصلاحية...</div>
+
+<div id="app" style="display:none;">
+  <div class="main">
+    <div id="topbarSlot"></div>
+    <div class="content">
+      <div class="panel">
+        <div class="head">
+          <div class="title">آخر العمليات الإدارية</div>
+          <div class="filters">
+            <select class="filter-select" id="fActor"><option value="">كل أعضاء الفريق</option></select>
+            <select class="filter-select" id="fTable">
+              <option value="">كل الأنواع</option>
+              <option value="ads">الإعلانات</option>
+              <option value="profiles">الحسابات والصلاحيات</option>
+              <option value="profiles_private">الحظر</option>
+              <option value="verification_requests">التوثيق</option>
+              <option value="payment_requests">شحن النقاط</option>
+              <option value="fee_payments">الرسوم</option>
+              <option value="points_transactions">تعديل النقاط</option>
+              <option value="reports">البلاغات</option>
+              <option value="support_messages">ردود الدعم</option>
+              <option value="admin_campaigns">الإشعارات</option>
+              <option value="app_settings">الإعدادات</option>
+              <option value="categories">الأقسام</option>
+              <option value="buy_requests">طلبات الشراء</option>
+            </select>
+            <button class="btn" onclick="loadLog(true)">تحديث</button>
+          </div>
+        </div>
+        <div id="logBox"><div class="note">جاري التحميل...</div></div>
+        <div style="padding:14px; text-align:center;"><button class="btn" id="moreBtn" onclick="loadLog(false)" style="display:none;">عرض المزيد</button></div>
+      </div>
+    </div>
+  </div>
+  <div id="sidebarSlot"></div>
+</div>
+
+<script src="./admin-guard.js"></script>
+<script>
+  const PAGE = 50;
+  let offset = 0;
+  const ROLE = { super_admin:'مدير عام', admin:'مدير', moderator:'مشرف' };
+  const STATUS = {
+    active:'نشط', pending:'بانتظار المراجعة', rejected:'مرفوض', deleted:'محذوف', sold:'مباع', expired:'منتهي',
+    draft:'مسودة', paused:'موقوف', approved:'مقبول', resolved:'مُغلق', dismissed:'مُتجاهل', closed:'مغلق', open:'مفتوح',
+    user:'مستخدم', merchant:'تاجر', moderator:'مشرف', admin:'مدير', super_admin:'مدير عام',
+  };
+  const ICON = {
+    ads:'🗂️', profiles:'👤', profiles_private:'🚫', verification_requests:'⭐', payment_requests:'💳', fee_payments:'🧾',
+    points_transactions:'🪙', reports:'🚩', support_messages:'💬', admin_campaigns:'📣', app_settings:'⚙️',
+    categories:'🗃️', buy_requests:'📢',
+  };
+  const COL = {
+    status:'الحالة', is_featured:'التمييز', role:'الصلاحية', is_verified:'التوثيق', is_merchant:'تاجر', is_banned:'الحظر',
+    value:'القيمة', name_ar:'الاسم', is_active:'الظهور', parent_id:'القسم الأب',
+  };
+
+  function v(x) {
+    if (x === true) return 'نعم';
+    if (x === false) return 'لا';
+    if (x === null || x === undefined || x === '') return '—';
+    return STATUS[x] || String(x);
+  }
+  function changes(d) {
+    return Object.entries(d || {})
+      .filter(([, val]) => val && typeof val === 'object' && 'to' in val)
+      .map(([k, val]) => `<span class="chg">${COL[k] || k}: ${escapeHtml(v(val.from))} ← ${escapeHtml(v(val.to))}</span>`)
+      .join('');
+  }
+
+  function describe(r) {
+    const d = r.details || {};
+    const t = r.target_table, a = r.action;
+    switch (t) {
+      case 'ads':
+        if (a === 'delete') return `حذف إعلان نهائياً: <b>${escapeHtml(d.title || '')}</b>`;
+        return `عدّل إعلاناً` + (d.title ? '' : '');
+      case 'profiles': return 'عدّل حساباً';
+      case 'profiles_private': return d.is_banned?.to ? 'حظر مستخدماً' : 'فك حظر مستخدم';
+      case 'verification_requests': return 'راجع طلب توثيق';
+      case 'payment_requests': return `راجع طلب شحن نقاط (${escapeHtml(String(d.points ?? ''))} نقطة)`;
+      case 'fee_payments': return `راجع دفع رسوم (${escapeHtml(String(d.amount ?? ''))} ريال)`;
+      case 'points_transactions': return `أضاف/خصم <b>${escapeHtml(String(d.points ?? ''))}</b> نقطة — ${escapeHtml(d.reason || '')}`;
+      case 'reports': return 'تعامل مع بلاغ';
+      case 'support_messages': return `ردّ على الدعم: «${escapeHtml(d.body || '')}»`;
+      case 'admin_campaigns': return `أرسل إشعاراً: <b>${escapeHtml(d.title || '')}</b> (${escapeHtml(String(d.target_count ?? ''))} مستخدم)`;
+      case 'app_settings':
+        return `غيّر الإعداد <b>${escapeHtml(r.target_id || '')}</b>` + (d.value && typeof d.value === 'object'
+          ? ` من «${escapeHtml(v(d.value.from))}» إلى «${escapeHtml(v(d.value.to))}»` : ` إلى «${escapeHtml(v(d.value))}»`);
+      case 'categories':
+        if (a === 'insert') return `أضاف قسماً: <b>${escapeHtml(d.name_ar || '')}</b>`;
+        if (a === 'delete') return `حذف قسماً: <b>${escapeHtml(d.name_ar || '')}</b>`;
+        return 'عدّل قسماً';
+      case 'buy_requests': return a === 'delete' ? `حذف طلب شراء: <b>${escapeHtml(d.title || '')}</b>` : 'عدّل طلب شراء';
+      default: return `${a} على ${t}`;
+    }
+  }
+
+  async function loadActors() {
+    const { data } = await selectRows('profiles', 'select=id,full_name,role&role=in.(moderator,admin,super_admin)&order=full_name');
+    const sel = document.getElementById('fActor');
+    (data || []).forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id; o.textContent = (p.full_name || '—') + ' (' + (ROLE[p.role] || p.role) + ')';
+      sel.appendChild(o);
+    });
+  }
+
+  async function loadLog(reset) {
+    if (reset) offset = 0;
+    const box = document.getElementById('logBox');
+    if (reset) box.innerHTML = '<div class="note">جاري التحميل...</div>';
+    let q = `select=*&order=created_at.desc&limit=${PAGE}&offset=${offset}`;
+    const actor = document.getElementById('fActor').value;
+    const table = document.getElementById('fTable').value;
+    if (actor) q += '&actor_id=eq.' + actor;
+    if (table) q += '&target_table=eq.' + table;
+    const { data, error } = await selectRows('admin_audit_log', q);
+    if (error) { box.innerHTML = '<div class="note">تعذر تحميل السجل.</div>'; return; }
+    const rows = data || [];
+    const html = rows.map(r => `
+      <div class="log-item">
+        <div class="ico">${ICON[r.target_table] || '•'}</div>
+        <div>
+          <div class="txt"><b>${escapeHtml(r.actor_name || '—')}</b><span class="role-tag">${ROLE[r.actor_role] || ''}</span> — ${describe(r)}</div>
+          <div>${changes(r.details)}</div>
+          <div class="meta">${new Date(r.created_at).toLocaleString('ar-EG', { timeZone:'Asia/Aden', day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' })}</div>
+        </div>
+      </div>`).join('');
+    if (reset) box.innerHTML = html || '<div class="note">لا توجد عمليات مسجّلة بعد. التسجيل بدأ من تاريخ تفعيل هذه الصفحة.</div>';
+    else box.insertAdjacentHTML('beforeend', html);
+    offset += rows.length;
+    document.getElementById('moreBtn').style.display = rows.length === PAGE ? 'inline-block' : 'none';
+  }
+
+  (async () => {
+    const me = await bootAdminPage('audit', 'سجل العمليات', 'كل إجراء إداري: من نفّذه ومتى وما الذي تغيّر');
+    if (!me) return;
+    if (me.role === 'moderator') {
+      document.getElementById('logBox').innerHTML = '<div class="note">سجل العمليات متاح للمدير والمدير العام فقط.</div>';
+      return;
+    }
+    document.getElementById('fActor').addEventListener('change', () => loadLog(true));
+    document.getElementById('fTable').addEventListener('change', () => loadLog(true));
+    await loadActors();
+    await loadLog(true);
+  })();
+</script>
+</body>
+</html>

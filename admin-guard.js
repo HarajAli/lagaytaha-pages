@@ -86,6 +86,7 @@ const NAV_ITEMS = [
   { key: 'users',        href: './admin-users.html',        icon: '👥', label: 'المستخدمون' },
   { key: 'reports',      href: './admin-reports.html',      icon: '🚩', label: 'البلاغات' },
   { key: 'support',      href: './admin-support.html',      icon: '💬', label: 'رسائل الدعم' },
+  { key: 'notify',       href: './admin-notify.html',       icon: '📣', label: 'الإشعارات والتذكيرات' },
   { key: 'verification', href: './admin-verification.html', icon: '⭐', label: 'التوثيق والتقييمات' },
   { key: 'points',       href: './admin-points.html',       icon: '🪙', label: 'النقاط والباقات' },
   { key: 'settings',     href: './admin-settings.html',     icon: '⚙️', label: 'الإعدادات' },
@@ -104,8 +105,8 @@ function renderSidebar(activeKey) {
       <div class="nav">
         ${items}
         <div style="height:1px; background:rgba(255,255,255,.08); margin:10px 16px;"></div>
-        <a href="#" class="disabled">🕓 سجل العمليات <span class="soon">قريباً</span></a>
-        <a href="#" class="disabled">🔐 الصلاحيات <span class="soon">قريباً</span></a>
+        <a href="./admin-audit.html" data-nav="audit"${activeKey === 'audit' ? ' class="active"' : ''}>🕓 سجل العمليات</a>
+        <a href="./admin-permissions.html" data-nav="permissions"${activeKey === 'permissions' ? ' class="active"' : ''}>🔐 الصلاحيات</a>
       </div>
       <div class="footer">
         <button onclick="adminLogout()">↩ تسجيل الخروج</button>
