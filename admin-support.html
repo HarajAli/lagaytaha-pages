@@ -182,7 +182,7 @@
     box.innerHTML = data.map(m => `
       <div class="bub ${m.from_staff ? 'staff' : 'user'}">${
         !m.from_staff && m.category ? `<span class="cat">${CAT_LABEL[m.category] || ''}</span><br>` : ''
-      }${escapeHtml(m.body)}<span class="when">${fmtFull(m.created_at)}</span></div>`).join('');
+      }<span dir="auto" style="display:block;">${escapeHtml(m.body)}</span><span class="when">${fmtFull(m.created_at)}</span></div>`).join('');
     box.scrollTop = box.scrollHeight;
   }
 
