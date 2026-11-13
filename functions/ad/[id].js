@@ -97,7 +97,10 @@ export async function onRequestGet(context) {
     ? 'https://schema.org/InStock'
     : 'https://schema.org/OutOfStock';
 
-  const structuredData = {
+  // إعلان بلا سعر (تبادل/مفقودات/السعر عند الاتصال): لا نعرّفه كمنتج لجوجل،
+  // لأن Product بدون price في offers يُعتبر بيانات منظَّمة غير صالحة.
+  const hasPrice = ad.price != null && Number.isFinite(Number(ad.price));
+  const structuredData = !hasPrice ? null : {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: ad.title,
@@ -105,7 +108,7 @@ export async function onRequestGet(context) {
     image: images.map((img) => img.image_url),
     offers: {
       '@type': 'Offer',
-      price: ad.price != null ? String(ad.price) : undefined,
+      price: String(ad.price),
       priceCurrency: isoCurrency(ad.currency),
       availability,
       url: canonicalUrl,
@@ -146,7 +149,7 @@ export async function onRequestGet(context) {
 <meta name="twitter:title" content="${escapeHtml(ad.title)}">
 <meta name="twitter:description" content="${escapeHtml(description)}">
 <meta name="twitter:image" content="${escapeHtml(mainImage)}">
-<script type="application/ld+json">${JSON.stringify(structuredData)}</script>
+${structuredData ? `<script type="application/ld+json">${JSON.stringify(structuredData)}</script>` : ''}
 <script type="application/ld+json">${JSON.stringify(breadcrumbData)}</script>
 <style>
   body{font-family:system-ui,-apple-system,'Segoe UI',Tahoma,sans-serif;margin:0;background:#f5f5f4;color:#222}
